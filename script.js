@@ -28,6 +28,10 @@ const stages = {
   surprise: document.getElementById("surprise"),
   letter: document.getElementById("letter")
 };
+const welcomeTitle = document.getElementById("welcome-title");
+const defaultWelcomeTitle = welcomeTitle.innerHTML;
+const lastSeenKey = "little-cookie-universe-last-seen";
+const returnVisitGap = 30 * 60 * 1000;
 const cookieButton = document.querySelector("[data-cookie]");
 const cookieField = document.getElementById("cookie-field");
 const progressCount = document.getElementById("progress-count");
@@ -46,16 +50,39 @@ let openingTimer = null;
 
 function updateWelcomeGreeting() {
   try {
+    const now = Date.now();
+    const lastSeen = Number(window.sessionStorage.getItem(lastSeenKey));
     const key = "little-cookie-universe-visits";
     const previous = Number(window.localStorage.getItem(key));
-    const visit = (Number.isSafeInteger(previous) && previous >= 0 ? previous : 0) % 3 + 1;
-    window.localStorage.setItem(key, String(visit));
-    if (visit === 3) {
-      document.getElementById("welcome-title").textContent = "Πάλι εδώ είσαι, πουπούκι; 😂";
+    const previousVisit = Number.isSafeInteger(previous) && previous >= 1 && previous <= 3 ? previous : 0;
+    const elapsed = now - lastSeen;
+    const recentVisit = previousVisit > 0 && lastSeen > 0 && elapsed >= 0 && elapsed < returnVisitGap;
+    const visit = recentVisit ? previousVisit : previousVisit % 3 + 1;
+    if (!recentVisit) {
+      window.localStorage.setItem(key, String(visit));
+      window.sessionStorage.setItem(lastSeenKey, String(now));
     }
+    welcomeTitle.innerHTML = defaultWelcomeTitle;
+    if (visit === 3) {
+      welcomeTitle.textContent = "Πάλι εδώ είσαι, πουπούκι; 😂";
+    }
+    return !recentVisit;
   } catch {
     // Keep the usual greeting if browser storage is unavailable.
+    return false;
   }
+}
+
+function markVisitEnd() {
+  try {
+    window.sessionStorage.setItem(lastSeenKey, String(Date.now()));
+  } catch {
+    // Browser storage may be unavailable.
+  }
+}
+
+function resumeVisit() {
+  if (updateWelcomeGreeting()) resetExperience();
 }
 
 function showStage(name) {
@@ -189,6 +216,14 @@ envelopeButton.addEventListener("click", () => {
   }, reducedMotion ? 0 : 850);
 });
 document.getElementById("replay-button").addEventListener("click", resetExperience);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) markVisitEnd();
+  else resumeVisit();
+});
+window.addEventListener("pagehide", markVisitEnd);
+window.addEventListener("pageshow", event => {
+  if (event.persisted) resumeVisit();
+});
 
 updateWelcomeGreeting();
 renderLetter();

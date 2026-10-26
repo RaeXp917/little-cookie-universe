@@ -169,6 +169,17 @@ try {
   assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), "0");
   assert.equal(await evaluate("document.querySelector('.cookie-button').disabled"), false);
 
+  for (let reload = 0; reload < 2; reload++) {
+    await evaluate("window.__visitTestMarker = true");
+    await send("Page.reload", { ignoreCache: true });
+    await until("window.__visitTestMarker === undefined && document.readyState === 'complete'");
+    assert.equal(await evaluate("document.querySelector('#welcome-title').textContent.trim()"), "Πουπουκάκι μου ♡", "A quick reload is the same visit");
+  }
+  assert.equal(await evaluate("document.hidden"), false);
+
+  async function returnAfterTimeAway() {
+    await evaluate("sessionStorage.setItem('little-cookie-universe-last-seen', String(Date.now() - 31 * 60 * 1000)); document.dispatchEvent(new Event('visibilitychange'))");
+  }
   for (const [visit, greeting] of [
     [2, "Πουπουκάκι μου ♡"],
     [3, "Πάλι εδώ είσαι, πουπούκι; 😂"],
@@ -176,10 +187,27 @@ try {
     [5, "Πουπουκάκι μου ♡"],
     [6, "Πάλι εδώ είσαι, πουπούκι; 😂"]
   ]) {
-    await evaluate("window.__visitTestMarker = true");
-    await send("Page.reload", { ignoreCache: true });
-    await until("window.__visitTestMarker === undefined && document.readyState === 'complete'");
+    if (visit === 3) {
+      await evaluate("window.__realNow = Date.now(); Date.now = () => window.__realNow - 31 * 60 * 1000; window.__visitTestMarker = true");
+      await send("Page.reload", { ignoreCache: true });
+      await until("window.__visitTestMarker === undefined && document.readyState === 'complete'");
+    } else {
+      if (visit === 4) await tap("#start-button");
+      await returnAfterTimeAway();
+    }
+    assert.equal(await evaluate("document.querySelector('#welcome').hidden"), false, `Visit ${visit} returns to welcome`);
     assert.equal(await evaluate("document.querySelector('#welcome-title').textContent.trim()"), greeting, `Visit ${visit} greeting`);
+    if (visit === 3) {
+      await viewport(320, 640);
+      await screenshot("return-greeting-320");
+      await viewport(390, 844);
+      await evaluate("document.dispatchEvent(new Event('visibilitychange'))");
+      assert.equal(await evaluate("document.querySelector('#welcome-title').textContent.trim()"), greeting, "Immediate return stays on the same visit");
+      await evaluate("window.__visitTestMarker = true");
+      await send("Page.reload", { ignoreCache: true });
+      await until("window.__visitTestMarker === undefined && document.readyState === 'complete'");
+      assert.equal(await evaluate("document.querySelector('#welcome-title').textContent.trim()"), greeting, "Quick reload keeps the current greeting");
+    }
   }
 
   for (const width of [320, 360, 412]) {
