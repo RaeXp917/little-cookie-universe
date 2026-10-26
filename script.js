@@ -3,13 +3,13 @@
 // PERSONAL TEXT: edit the seven cookie messages and letter here.
 const PERSONAL_TEXT = {
   cookieMessages: [
-    "Ένα μπισκοτάκι για το όμορφο χαμόγελό σου. 🍪",
-    "Μου αρέσει που μπορούμε να μιλάμε για τα πάντα, ακόμα και για τις πιο άκυρες βλακείες.",
-    "Έχεις έναν πολύ γλυκό τρόπο να μου φτιάχνεις τη διάθεση.",
-    "Μου αρέσουν τα γέλια μας και τα μικρά μας πειράγματα.",
-    "Χαίρομαι που σε γνωρίζω όλο και περισσότερο.",
+    "Ήθελα να σου φτιάξω λίγο τη διάθεση σήμερα. ❤️",
+    "Μου αρέσει πολύ να μιλάμε, ακόμα κι όταν λέμε τις πιο άκυρες βλακείες.",
+    "Μου αρέσει να σε πειράζω και να σε κάνω να γελάς.",
+    "Μερικές φορές πιάνω τον εαυτό μου να χαμογελάει όταν βλέπω μήνυμά σου.",
+    "Χαίρομαι που γνωριζόμαστε όλο και περισσότερο.",
     "Μου αρέσει που έχουμε ήδη τα δικά μας μικρά αστεία.",
-    "Τελευταίο μπισκοτάκι! Αλλά σου έχω κρατήσει κάτι ακόμα... 💌"
+    "Και επειδή ήθελα να σου κάνω μια μικρή έκπληξη... σου έχω αφήσει κάτι ακόμα. ❤️"
   ],
   letter: [
     { text: "Πουπουκάκι μου, ❤️", bold: true },
@@ -28,7 +28,8 @@ const stages = {
   surprise: document.getElementById("surprise"),
   letter: document.getElementById("letter")
 };
-const cookieButtons = [...document.querySelectorAll("[data-cookie]")];
+const cookieButton = document.querySelector("[data-cookie]");
+const cookieField = document.getElementById("cookie-field");
 const progressCount = document.getElementById("progress-count");
 const progressFill = document.getElementById("progress-fill");
 const messageCard = document.getElementById("message-card");
@@ -37,7 +38,10 @@ const messageText = document.getElementById("message-text");
 const continueButton = document.getElementById("continue-button");
 const envelopeButton = document.getElementById("envelope-button");
 const letterBody = document.getElementById("letter-body");
-const collected = new Set();
+const totalSteps = PERSONAL_TEXT.cookieMessages.length;
+let step = 0;
+let phase = "ready";
+let collectionTimer = null;
 let openingTimer = null;
 
 function showStage(name) {
@@ -55,26 +59,56 @@ function showCookieMessage(index) {
   messageCard.classList.remove("is-new");
   // Restart the small entrance animation even when cookies are tapped quickly.
   void messageCard.offsetWidth;
-  messageIndex.textContent = `ΜΠΙΣΚΟΤΑΚΙ ${index + 1} ΑΠΟ 7`;
+  messageIndex.textContent = `ΜΠΙΣΚΟΤΑΚΙ ${index + 1} ΑΠΟ ${totalSteps}`;
   messageText.textContent = PERSONAL_TEXT.cookieMessages[index];
   messageCard.classList.add("is-new");
 }
 
-function collectCookie(button) {
-  const index = Number(button.dataset.cookie);
-  if (collected.has(index) || stages.game.hidden) return;
+function collectCookie() {
+  if (phase !== "ready" || stages.game.hidden) return;
 
-  collected.add(index);
-  button.disabled = true;
-  button.classList.add("is-collected");
-  const count = collected.size;
-  progressCount.textContent = `${count} / ${cookieButtons.length}`;
-  progressFill.style.width = `${(count / cookieButtons.length) * 100}%`;
-  showCookieMessage(index);
+  phase = "collecting";
+  cookieButton.disabled = true;
+  cookieButton.classList.remove("is-entering");
+  cookieButton.classList.add("is-collected");
+  cookieField.classList.add("is-collected");
+  progressCount.textContent = `${step + 1} / ${totalSteps}`;
+  progressFill.style.width = `${((step + 1) / totalSteps) * 100}%`;
 
-  if (count === cookieButtons.length) {
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  collectionTimer = window.setTimeout(() => {
+    collectionTimer = null;
+    if (phase !== "collecting") return;
+    showCookieMessage(step);
     continueButton.hidden = false;
+    phase = "message";
+  }, reducedMotion ? 0 : 480);
+}
+
+function continueJourney() {
+  if (phase !== "message" || stages.game.hidden) return;
+  phase = "advancing"; // A second tap cannot skip the next cookie.
+  continueButton.hidden = true;
+
+  if (step === totalSteps - 1) {
+    phase = "complete";
+    showStage("surprise");
+    return;
   }
+
+  step += 1;
+  cookieButton.dataset.cookie = String(step);
+  cookieButton.setAttribute("aria-label", `Μπισκοτάκι ${step + 1} από ${totalSteps}`);
+  cookieButton.classList.remove("is-collected");
+  cookieField.classList.remove("is-collected");
+  cookieButton.classList.add("is-entering");
+  cookieButton.disabled = false;
+  messageCard.classList.remove("is-new");
+  messageIndex.textContent = "ΕΝΑ ΜΙΚΡΟ ΜΥΣΤΙΚΟ";
+  messageText.textContent = "Τα μπισκοτάκια περιμένουν να τα ανακαλύψεις.";
+  phase = "ready";
+  window.scrollTo(0, 0);
+  cookieButton.focus({ preventScroll: true });
 }
 
 function renderLetter() {
@@ -96,16 +130,22 @@ function renderLetter() {
 }
 
 function resetExperience() {
+  if (collectionTimer !== null) {
+    window.clearTimeout(collectionTimer);
+    collectionTimer = null;
+  }
   if (openingTimer !== null) {
     window.clearTimeout(openingTimer);
     openingTimer = null;
   }
-  collected.clear();
-  for (const button of cookieButtons) {
-    button.disabled = false;
-    button.classList.remove("is-collected");
-  }
-  progressCount.textContent = `0 / ${cookieButtons.length}`;
+  step = 0;
+  phase = "ready";
+  cookieButton.dataset.cookie = "0";
+  cookieButton.setAttribute("aria-label", `Μπισκοτάκι 1 από ${totalSteps}`);
+  cookieButton.disabled = false;
+  cookieButton.classList.remove("is-collected", "is-entering");
+  cookieField.classList.remove("is-collected");
+  progressCount.textContent = `0 / ${totalSteps}`;
   progressFill.style.width = "0%";
   messageIndex.textContent = "ΕΝΑ ΜΙΚΡΟ ΜΥΣΤΙΚΟ";
   messageText.textContent = "Τα μπισκοτάκια περιμένουν να τα ανακαλύψεις.";
@@ -117,17 +157,20 @@ function resetExperience() {
 }
 
 document.getElementById("start-button").addEventListener("click", () => showStage("game"));
-cookieButtons.forEach(button => button.addEventListener("click", () => collectCookie(button)));
-continueButton.addEventListener("click", () => {
-  if (collected.size === cookieButtons.length) showStage("surprise");
+cookieButton.addEventListener("click", collectCookie);
+cookieButton.addEventListener("animationend", event => {
+  if (event.animationName === "cookie-appear") cookieButton.classList.remove("is-entering");
 });
+continueButton.addEventListener("click", continueJourney);
 envelopeButton.addEventListener("click", () => {
-  if (collected.size !== cookieButtons.length || envelopeButton.disabled) return;
+  if (phase !== "complete" || stages.surprise.hidden || envelopeButton.disabled) return;
+  phase = "opening";
   envelopeButton.disabled = true;
   envelopeButton.classList.add("is-opening");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   openingTimer = window.setTimeout(() => {
     openingTimer = null;
+    phase = "letter";
     showStage("letter");
   }, reducedMotion ? 0 : 850);
 });

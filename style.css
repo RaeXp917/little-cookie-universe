@@ -118,7 +118,7 @@ h1, h2 { font-family: var(--display-font); font-weight: 400; }
 .pill-button span { font-size: 1.25rem; }
 .small-note { margin: 14px 0 0; color: #d3bfdf; font-size: .78rem; letter-spacing: .02em; }
 
-/* The seven cookies stay in fixed places so every remaining target is easy to find. */
+/* One cookie at a time keeps each message in its own step. */
 .stage--game { display: flex; flex-direction: column; align-items: center; gap: 20px; padding-top: max(29px, env(safe-area-inset-top)); padding-bottom: max(35px, env(safe-area-inset-bottom)); }
 .stage-header { text-align: center; }
 .stage-header h2 { margin: 13px 0 9px; font-size: clamp(2rem, 8vw, 3rem); line-height: 1.13; letter-spacing: -.03em; }
@@ -129,19 +129,16 @@ h1, h2 { font-family: var(--display-font); font-weight: 400; }
 .progress-count { color: var(--gold); font-size: .92rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .progress-track { grid-column: 1 / -1; height: 5px; overflow: hidden; border-radius: 99px; background: #ffe3c333; }
 .progress-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f8bbd4, #ffe1a0); box-shadow: 0 0 8px #ffe1a0; transition: width .4s ease; }
-.cookie-field { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(2px, 2vw, 13px); align-items: center; justify-items: center; width: min(100%, 335px); margin: 0 auto; padding: 8px 0; }
+.cookie-field { position: relative; display: grid; place-items: center; width: min(100%, 335px); height: clamp(175px, 27vh, 230px); margin: 0 auto; transition: height .45s ease; }
+.cookie-field.is-collected { height: clamp(82px, 12vh, 108px); }
 .cookie-field::before { content: ""; position: absolute; inset: 12% -3%; z-index: -1; border-radius: 50%; background: radial-gradient(ellipse, #b37ca12b, transparent 68%); filter: blur(9px); }
-.cookie-button { position: relative; display: grid; place-items: center; width: min(100%, 105px); aspect-ratio: 1; padding: 3px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; touch-action: manipulation; isolation: isolate; animation: cookie-bob 3.8s ease-in-out infinite; }
+.cookie-button { position: relative; display: grid; place-items: center; width: clamp(142px, 44vw, 190px); aspect-ratio: 1; padding: 3px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; touch-action: manipulation; isolation: isolate; animation: cookie-bob 3.8s ease-in-out infinite; }
 .cookie-button::before { content: ""; position: absolute; inset: 8%; z-index: -1; border-radius: 50%; background: #efbb8a33; filter: blur(13px); transition: background .2s; }
 .cookie-button:hover::before, .cookie-button:focus-visible::before { background: #f4cf9488; }
 .cookie-button svg { display: block; width: 94%; height: 94%; overflow: visible; filter: drop-shadow(0 7px 0 #60394a77) drop-shadow(0 9px 11px #130b1d99); transition: transform .2s ease, filter .2s ease; }
 .cookie-button:hover svg { transform: scale(1.08) rotate(5deg); filter: drop-shadow(0 7px 0 #60394a77) drop-shadow(0 10px 17px #f3b87c72); }
 .cookie-button:active svg { transform: scale(.88); }
-.cookie-button:nth-of-type(2n) { animation-delay: -1.7s; }
-.cookie-button:nth-of-type(3n) { animation-delay: -2.6s; }
-.cookie-button:nth-of-type(4n) svg { transform: rotate(15deg); }
-.cookie-button:nth-of-type(5n) svg { transform: rotate(-12deg); }
-.cookie-button:nth-of-type(7) { grid-column: 2; }
+.cookie-button.is-entering { animation: cookie-appear .45s ease-out both; }
 .cookie-button.is-collected { pointer-events: none; animation: cookie-collect .48s ease-out forwards; }
 .cookie-button.is-collected::after { content: "✧  ·  ✦"; position: absolute; inset: -8px; display: grid; place-items: center; color: #ffeab1; font-size: 1.5rem; text-shadow: 0 0 12px #ffe49b; animation: collect-spark .6s ease-out both; }
 .field-spark { position: absolute; z-index: -1; color: var(--gold); opacity: .6; animation: sky-twinkle 3s ease-in-out infinite alternate; }
@@ -199,6 +196,7 @@ h1, h2 { font-family: var(--display-font); font-weight: 400; }
 @keyframes halo-breathe { from { opacity: .65; transform: scale(.9); } to { opacity: 1; transform: scale(1.1); } }
 @keyframes hero-float { 0%,100% { transform: translateY(0) rotate(-15deg); } 50% { transform: translateY(-10px) rotate(-10deg); } }
 @keyframes cookie-bob { 0%,100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+@keyframes cookie-appear { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
 @keyframes cookie-collect { 0% { opacity: 1; scale: 1; } 40% { opacity: 1; scale: 1.2; } 100% { opacity: 0; scale: .12; } }
 @keyframes collect-spark { from { opacity: 1; scale: .5; } to { opacity: 0; scale: 1.8; } }
 @keyframes stage-arrive { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
@@ -222,7 +220,7 @@ h1, h2 { font-family: var(--display-font); font-weight: 400; }
   .stage--game { gap: 10px; padding-top: max(15px, env(safe-area-inset-top)); padding-bottom: max(18px, env(safe-area-inset-bottom)); }
   .stage-header h2 { margin-top: 6px; margin-bottom: 5px; }
   .stage-header p { font-size: .88rem; line-height: 1.4; }
-  .cookie-field { width: min(100%, 260px); padding-block: 2px; }
+  .cookie-field { height: 170px; }
   .message-card { min-height: 96px; padding-block: 13px; }
   .surprise-content { padding-block: 8px; }
   .envelope-button { margin-top: 12px; }

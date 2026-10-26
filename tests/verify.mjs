@@ -109,7 +109,7 @@ try {
   await until("document.readyState === 'complete'");
   await until("document.querySelector('#letter-body').children.length === 7");
   assert.equal(await evaluate("document.querySelector('#welcome-title').textContent.trim()"), "Πουπουκάκι μου ♡");
-  assert.equal(await evaluate("document.querySelectorAll('[data-cookie]').length"), 7);
+  assert.equal(await evaluate("document.querySelectorAll('[data-cookie]').length"), 1);
   assert.equal(await evaluate("document.querySelector('#surprise').hidden"), true);
   await screenshot("welcome-390");
 
@@ -117,24 +117,45 @@ try {
   assert.equal(await evaluate("document.querySelector('#game').hidden"), false);
   await screenshot("game-390");
   const messages = [
-    "Ένα μπισκοτάκι για το όμορφο χαμόγελό σου. 🍪",
-    "Μου αρέσει που μπορούμε να μιλάμε για τα πάντα, ακόμα και για τις πιο άκυρες βλακείες.",
-    "Έχεις έναν πολύ γλυκό τρόπο να μου φτιάχνεις τη διάθεση.",
-    "Μου αρέσουν τα γέλια μας και τα μικρά μας πειράγματα.",
-    "Χαίρομαι που σε γνωρίζω όλο και περισσότερο.",
+    "Ήθελα να σου φτιάξω λίγο τη διάθεση σήμερα. ❤️",
+    "Μου αρέσει πολύ να μιλάμε, ακόμα κι όταν λέμε τις πιο άκυρες βλακείες.",
+    "Μου αρέσει να σε πειράζω και να σε κάνω να γελάς.",
+    "Μερικές φορές πιάνω τον εαυτό μου να χαμογελάει όταν βλέπω μήνυμά σου.",
+    "Χαίρομαι που γνωριζόμαστε όλο και περισσότερο.",
     "Μου αρέσει που έχουμε ήδη τα δικά μας μικρά αστεία.",
-    "Τελευταίο μπισκοτάκι! Αλλά σου έχω κρατήσει κάτι ακόμα... 💌"
+    "Και επειδή ήθελα να σου κάνω μια μικρή έκπληξη... σου έχω αφήσει κάτι ακόμα. ❤️"
   ];
   for (let index = 0; index < 7; index++) {
-    await tap(`[data-cookie="${index}"]`);
+    assert.equal(await evaluate("document.querySelectorAll('.cookie-button').length"), 1);
+    assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), String(index));
+    assert.equal(await evaluate("document.querySelector('.cookie-button').disabled"), false);
+    assert.equal(await evaluate("document.querySelector('#continue-button').hidden"), true);
+    await tap(".cookie-button");
+    await tap(".cookie-button"); // A rapid second touch must not collect another step.
     assert.equal(await evaluate("document.querySelector('#progress-count').textContent"), `${index + 1} / 7`);
+    assert.equal(await evaluate("document.querySelector('.cookie-button').disabled"), true);
+    await until("document.querySelector('#continue-button').hidden === false");
     assert.equal(await evaluate("document.querySelector('#message-text').textContent"), messages[index]);
-    assert.equal(await evaluate(`document.querySelector('[data-cookie="${index}"]').disabled`), true);
     assert.equal(await evaluate("document.querySelector('#surprise').hidden"), true);
-    assert.equal(await evaluate("document.querySelector('#continue-button').hidden"), index < 6);
+    assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), String(index));
+    if (index === 0 || index === 6) await screenshot(`message-${index + 1}-390`);
+    if (index === 0) {
+      assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), "0");
+      assert.equal(await evaluate("document.querySelector('#message-text').textContent"), messages[0]);
+      assert.equal(await evaluate("document.querySelector('#continue-button').hidden"), false);
+    }
+    await tap("#continue-button");
+    await evaluate("document.querySelector('#continue-button').click()"); // A duplicate Continue event must be ignored.
+    if (index < 6) {
+      assert.equal(await evaluate("document.querySelector('#game').hidden"), false);
+      assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), String(index + 1));
+      assert.equal(await evaluate("document.querySelector('#continue-button').hidden"), true);
+      assert.equal(await evaluate("document.querySelector('#progress-count').textContent"), `${index + 1} / 7`);
+    }
   }
-  await tap("#continue-button");
   assert.equal(await evaluate("document.querySelector('#surprise').hidden"), false);
+  assert.equal(await evaluate("document.querySelector('#surprise p').textContent.trim()"), "Ένα μικρό γράμμα για σένα 💌");
+  assert.equal(await evaluate("document.querySelector('#envelope-button').getAttribute('aria-label')"), "Άνοιξέ το ♡");
   await screenshot("surprise-390");
   await tap("#envelope-button");
   await until("document.querySelector('#letter').hidden === false");
@@ -145,21 +166,36 @@ try {
   await tap("#replay-button");
   assert.equal(await evaluate("document.querySelector('#welcome').hidden"), false);
   assert.equal(await evaluate("document.querySelector('#progress-count').textContent"), "0 / 7");
-  assert.equal(await evaluate("document.querySelectorAll('.cookie-button:disabled').length"), 0);
+  assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), "0");
+  assert.equal(await evaluate("document.querySelector('.cookie-button').disabled"), false);
 
   for (const width of [320, 360, 412]) {
     await viewport(width, 640);
     await screenshot(`welcome-${width}`);
     await tap("#start-button");
     await viewport(width, 640);
-    const targets = await evaluate("[...document.querySelectorAll('.cookie-button')].map(el => { const r=el.getBoundingClientRect(); return {width:r.width,height:r.height,left:r.left,right:r.right} })");
-    assert.ok(targets.every(rect => rect.width >= 44 && rect.height >= 44 && rect.left >= 0 && rect.right <= width), `${width}px cookie targets overflow`);
+    const target = await evaluate("(() => { const r=document.querySelector('.cookie-button').getBoundingClientRect(); return {width:r.width,height:r.height,left:r.left,right:r.right} })()");
+    assert.ok(target.width >= 44 && target.height >= 44 && target.left >= 0 && target.right <= width, `${width}px cookie target overflows`);
     await screenshot(`game-${width}`);
+    await tap(".cookie-button");
+    await until("document.querySelector('#continue-button').hidden === false");
+    await viewport(width, 640);
+    await screenshot(`message-${width}`);
+    await tap("#continue-button");
+    assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), "1");
     await send("Page.reload", { ignoreCache: true });
     await until("document.querySelector('#welcome').hidden === false");
   }
+  await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+  await viewport(320, 568);
+  assert.equal(await evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches"), true);
+  await tap("#start-button");
+  await tap(".cookie-button");
+  await until("document.querySelector('#continue-button').hidden === false");
+  await tap("#continue-button");
+  assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), "1");
   assert.deepEqual(runtimeErrors, []);
-  console.log(`PASS: seven touch collections, messages, progress, envelope, letter, replay, and 320/360/390/412px layouts. Screenshots: ${screenshots}`);
+  console.log(`PASS: seven sequential touch steps, guarded Continue, messages, progress, envelope, letter, replay, and 320/360/390/412px layouts. Screenshots: ${screenshots}`);
 } finally {
   if (socket?.readyState === WebSocket.OPEN) {
     await Promise.race([send("Browser.close").catch(() => {}), pause(500)]);
