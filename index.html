@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="el">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#17102d">
+    <meta name="description" content="Ένας μικρός κόσμος με αστέρια, μπισκοτάκια και μια έκπληξη μόνο για σένα.">
+    <title>A Little World For You ♡</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+    <link rel="stylesheet" href="./style.css">
+    <script src="./script.js" defer></script>
+  </head>
+  <body>
+    <svg class="svg-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="cookie-fill" cx="38%" cy="28%" r="75%">
+          <stop offset="0" stop-color="#ffe0a0"/>
+          <stop offset=".58" stop-color="#eeb977"/>
+          <stop offset="1" stop-color="#bb784d"/>
+        </radialGradient>
+        <linearGradient id="cookie-edge" x1="0" y1="0" x2="1" y2="1">
+          <stop stop-color="#e6a66a"/>
+          <stop offset="1" stop-color="#9e5b42"/>
+        </linearGradient>
+        <symbol id="cookie-art" viewBox="0 0 120 120">
+          <path d="M60 8c7 0 11 5 17 6s12-2 18 3 5 12 10 17 11 8 10 16-6 11-6 18 3 13-2 19-12 5-17 10-7 11-15 12-12-3-19-2-12 5-19 1-7-11-13-15-12-6-14-13 2-12 1-19-5-13-2-20 10-8 14-14 5-12 12-15 13 0 19-2 10-6 16-6Z" fill="url(#cookie-edge)"/>
+          <path d="M60 13c7 0 11 5 16 6s11-2 16 3 5 11 9 16 10 8 9 14-6 11-5 17 3 12-2 17-11 4-16 9-7 10-14 10-11-3-17-2-11 5-17 1-7-10-12-14-11-5-13-12 2-11 1-17-5-12-2-18 9-7 13-13 5-11 11-14 12 0 18-2 9-5 15-5Z" fill="url(#cookie-fill)"/>
+          <path d="M34 30c11-10 29-13 43-6" fill="none" stroke="#fff1c6" stroke-linecap="round" stroke-width="3" opacity=".5"/>
+          <g fill="#784439">
+            <path d="M34 38c5-4 11 0 11 5s-6 8-11 6-5-8 0-11Z"/>
+            <path d="M67 27c5-3 11 0 11 5s-3 9-9 8-7-10-2-13Z"/>
+            <path d="M85 50c6-1 10 5 7 10s-10 6-13 1 1-10 6-11Z"/>
+            <path d="M52 61c6-4 12 1 11 7s-8 9-13 5-3-9 2-12Z"/>
+            <path d="M27 69c5-3 10 0 10 5s-5 8-10 5-5-7 0-10Z"/>
+            <path d="M69 82c5-3 11 1 10 6s-7 8-11 4-4-7 1-10Z"/>
+            <path d="M47 25c3-2 7 0 7 3s-4 5-7 3-3-4 0-6Z"/>
+          </g>
+          <g fill="#9e6247" opacity=".65">
+            <circle cx="51" cy="41" r="2"/><circle cx="86" cy="35" r="2"/>
+            <circle cx="42" cy="87" r="2.5"/><circle cx="91" cy="77" r="2"/>
+          </g>
+        </symbol>
+      </defs>
+    </svg>
+
+    <div class="sky" aria-hidden="true">
+      <div class="sky-glow sky-glow--one"></div>
+      <div class="sky-glow sky-glow--two"></div>
+      <div class="stars stars--far"></div>
+      <div class="stars stars--near"></div>
+      <div class="sky-vignette"></div>
+    </div>
+
+    <main class="experience" id="experience">
+      <section class="stage stage--welcome" id="welcome" aria-labelledby="welcome-title">
+        <div class="welcome-copy">
+          <span class="eyebrow"><span class="eyebrow-star" aria-hidden="true">✦</span> ΜΙΑ ΜΙΚΡΗ ΕΚΠΛΗΞΗ <span class="eyebrow-star" aria-hidden="true">✦</span></span>
+          <h1 id="welcome-title">Πουπουκάκι μου <span class="title-heart">♡</span></h1>
+          <p class="welcome-intro">Σου έφτιαξα κάτι μικρό...<br>μόνο για σένα. <span aria-hidden="true">🍪✨</span></p>
+        </div>
+
+        <div class="welcome-art" aria-hidden="true">
+          <div class="art-halo"></div>
+          <div class="orbit orbit--outer"></div>
+          <div class="orbit orbit--inner"></div>
+          <span class="art-star art-star--a">✦</span>
+          <span class="art-star art-star--b">✧</span>
+          <span class="art-star art-star--c">✦</span>
+          <span class="art-star art-star--d">✧</span>
+          <span class="art-heart">♡</span>
+          <svg class="hero-cookie" viewBox="0 0 120 120"><use href="#cookie-art"/></svg>
+          <span class="art-trail art-trail--a"></span>
+          <span class="art-trail art-trail--b"></span>
+        </div>
+
+        <div class="welcome-action">
+          <button class="pill-button" type="button" id="start-button">Έχω μια έκπληξη για σένα <span aria-hidden="true">♡</span></button>
+          <p class="small-note">Μια μικρή βόλτα κάτω από τα αστέρια</p>
+        </div>
+      </section>
+
+      <section class="stage stage--game" id="game" aria-labelledby="game-title" hidden>
+        <header class="stage-header">
+          <span class="eyebrow"><span class="eyebrow-star" aria-hidden="true">✦</span> ΤΟ ΜΙΚΡΟ ΜΑΣ ΠΑΙΧΝΙΔΙ</span>
+          <h2 id="game-title">Βρες τα μπισκοτάκια <span aria-hidden="true">🍪</span></h2>
+          <p>Άγγιξέ τα ένα ένα. Κάθε μπισκοτάκι έχει κάτι να σου πει.</p>
+        </header>
+
+        <div class="progress-wrap" aria-label="Πρόοδος παιχνιδιού">
+          <span class="progress-label">ΜΠΙΣΚΟΤΑΚΙΑ</span>
+          <span class="progress-count" id="progress-count" aria-live="polite">0 / 7</span>
+          <div class="progress-track" aria-hidden="true"><span id="progress-fill"></span></div>
+        </div>
+
+        <div class="cookie-field" id="cookie-field" role="group" aria-label="Επτά μπισκοτάκια για συλλογή">
+          <span class="field-spark field-spark--a" aria-hidden="true">✧</span>
+          <span class="field-spark field-spark--b" aria-hidden="true">✦</span>
+          <span class="field-spark field-spark--c" aria-hidden="true">✧</span>
+          <span class="field-spark field-spark--d" aria-hidden="true">✦</span>
+          <button class="cookie-button" type="button" data-cookie="0" aria-label="Μπισκοτάκι 1 από 7"><svg viewBox="0 0 120 120" aria-hidden="true"><use href="#cookie-art"/></svg></button>
+          <button class="cookie-button" type="button" data-cookie="1" aria-label="Μπισκοτάκι 2 από 7"><svg viewBox="0 0 120 120" aria-hidden="true"><use href="#cookie-art"/></svg></button>
+          <button class="cookie-button" type="button" data-cookie="2" aria-label="Μπισκοτάκι 3 από 7"><svg viewBox="0 0 120 120" aria-hidden="true"><use href="#cookie-art"/></svg></button>
+          <button class="cookie-button" type="button" data-cookie="3" aria-label="Μπισκοτάκι 4 από 7"><svg viewBox="0 0 120 120" aria-hidden="true"><use href="#cookie-art"/></svg></button>
+          <button class="cookie-button" type="button" data-cookie="4" aria-label="Μπισκοτάκι 5 από 7"><svg viewBox="0 0 120 120" aria-hidden="true"><use href="#cookie-art"/></svg></button>
+          <button class="cookie-button" type="button" data-cookie="5" aria-label="Μπισκοτάκι 6 από 7"><svg viewBox="0 0 120 120" aria-hidden="true"><use href="#cookie-art"/></svg></button>
+          <button class="cookie-button" type="button" data-cookie="6" aria-label="Μπισκοτάκι 7 από 7"><svg viewBox="0 0 120 120" aria-hidden="true"><use href="#cookie-art"/></svg></button>
+        </div>
+
+        <div class="message-card" id="message-card" role="status" aria-live="polite" aria-atomic="true">
+          <span class="message-index" id="message-index">ΕΝΑ ΜΙΚΡΟ ΜΥΣΤΙΚΟ</span>
+          <p id="message-text">Τα μπισκοτάκια περιμένουν να τα ανακαλύψεις.</p>
+        </div>
+        <button class="pill-button pill-button--continue" type="button" id="continue-button" hidden>Δες τι σε περιμένει <span aria-hidden="true">✧</span></button>
+      </section>
+
+      <section class="stage stage--surprise" id="surprise" aria-labelledby="surprise-title" hidden>
+        <div class="surprise-content">
+          <span class="eyebrow"><span class="eyebrow-star" aria-hidden="true">✦</span> ΕΦΤΑΣΕΣ ΩΣ ΕΔΩ</span>
+          <h2 id="surprise-title">Κάτι ακόμα<br><em>για σένα</em></h2>
+          <p>Πουπουκάκι μου, σου έχω αφήσει κάτι ακόμα. <span aria-hidden="true">💌</span></p>
+
+          <button class="envelope-button" type="button" id="envelope-button" aria-label="Άνοιξε το γράμμα σου">
+            <span class="envelope-aura"></span>
+            <span class="envelope-letter"></span>
+            <span class="envelope-back"></span>
+            <span class="envelope-flap"></span>
+            <span class="envelope-front"></span>
+            <span class="envelope-seal">♡</span>
+            <span class="envelope-twinkle envelope-twinkle--one">✦</span>
+            <span class="envelope-twinkle envelope-twinkle--two">✧</span>
+          </button>
+
+          <span class="open-hint">Άνοιξε το γράμμα σου ♡</span>
+        </div>
+      </section>
+
+      <section class="stage stage--letter" id="letter" aria-labelledby="letter-title" hidden>
+        <span class="eyebrow"><span class="eyebrow-star" aria-hidden="true">✦</span> ΓΙΑ ΣΕΝΑ, ΜΕ ΕΝΑ ΧΑΜΟΓΕΛΟ</span>
+        <article class="letter-paper">
+          <div class="letter-top" aria-hidden="true"><span>✦</span><span>♡</span><span>✦</span></div>
+          <h2 id="letter-title">Ένα μικρό γράμμα</h2>
+          <div class="letter-body" id="letter-body"></div>
+          <div class="letter-signoff" aria-hidden="true">✧ &nbsp; 🍪 &nbsp; ✧</div>
+        </article>
+        <button class="replay-button" type="button" id="replay-button">Παίξε ξανά <span aria-hidden="true">🍪</span></button>
+      </section>
+    </main>
+    <noscript><p class="noscript-note">Για να ανοίξει αυτή η μικρή έκπληξη, ενεργοποίησε τη JavaScript στον περιηγητή σου.</p></noscript>
+  </body>
+</html>
