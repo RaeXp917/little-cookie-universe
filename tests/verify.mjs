@@ -122,7 +122,7 @@ try {
     "Έχεις έναν πολύ γλυκό τρόπο να μου φτιάχνεις τη διάθεση.",
     "Μου αρέσουν τα γέλια μας και τα μικρά μας πειράγματα.",
     "Χαίρομαι που σε γνωρίζω όλο και περισσότερο.",
-    "Τα αστέρια είναι δικά σου και τα μπισκοτάκια δικά μου. Ωραίος συνδυασμός, ε; ✨🍪",
+    "Μου αρέσει που έχουμε ήδη τα δικά μας μικρά αστεία.",
     "Τελευταίο μπισκοτάκι! Αλλά σου έχω κρατήσει κάτι ακόμα... 💌"
   ];
   for (let index = 0; index < 7; index++) {
@@ -139,6 +139,7 @@ try {
   await tap("#envelope-button");
   await until("document.querySelector('#letter').hidden === false");
   assert.equal(await evaluate("document.querySelector('#letter-body').children.length"), 7);
+  assert.equal(await evaluate("document.querySelector('#letter-body').children[1].textContent"), "Σου έφτιαξα αυτό το μικρό παιχνιδάκι γιατί ήθελα να σου κάνω μια μικρή έκπληξη. Κάτι λίγο διαφορετικό, μόνο για σένα.");
   assert.ok((await evaluate("document.querySelector('#letter-body').textContent")).includes("σου χρωστάω αληθινά!"));
   await screenshot("letter-390");
   await tap("#replay-button");
