@@ -169,6 +169,19 @@ try {
   assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), "0");
   assert.equal(await evaluate("document.querySelector('.cookie-button').disabled"), false);
 
+  for (const [visit, greeting] of [
+    [2, "Πουπουκάκι μου ♡"],
+    [3, "Πάλι εδώ είσαι, πουπούκι; 😂"],
+    [4, "Πουπουκάκι μου ♡"],
+    [5, "Πουπουκάκι μου ♡"],
+    [6, "Πάλι εδώ είσαι, πουπούκι; 😂"]
+  ]) {
+    await evaluate("window.__visitTestMarker = true");
+    await send("Page.reload", { ignoreCache: true });
+    await until("window.__visitTestMarker === undefined && document.readyState === 'complete'");
+    assert.equal(await evaluate("document.querySelector('#welcome-title').textContent.trim()"), greeting, `Visit ${visit} greeting`);
+  }
+
   for (const width of [320, 360, 412]) {
     await viewport(width, 640);
     await screenshot(`welcome-${width}`);

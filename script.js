@@ -44,6 +44,20 @@ let phase = "ready";
 let collectionTimer = null;
 let openingTimer = null;
 
+function updateWelcomeGreeting() {
+  try {
+    const key = "little-cookie-universe-visits";
+    const previous = Number(window.localStorage.getItem(key));
+    const visit = (Number.isSafeInteger(previous) && previous >= 0 ? previous : 0) % 3 + 1;
+    window.localStorage.setItem(key, String(visit));
+    if (visit === 3) {
+      document.getElementById("welcome-title").textContent = "Πάλι εδώ είσαι, πουπούκι; 😂";
+    }
+  } catch {
+    // Keep the usual greeting if browser storage is unavailable.
+  }
+}
+
 function showStage(name) {
   for (const [stageName, element] of Object.entries(stages)) {
     element.hidden = stageName !== name;
@@ -176,4 +190,5 @@ envelopeButton.addEventListener("click", () => {
 });
 document.getElementById("replay-button").addEventListener("click", resetExperience);
 
+updateWelcomeGreeting();
 renderLetter();
