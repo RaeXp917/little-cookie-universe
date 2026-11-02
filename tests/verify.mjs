@@ -275,7 +275,7 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('.birthday-confetti').length"), 1);
   assert.equal(await evaluate("document.querySelector('#birthday-music').hidden"), false);
   assert.equal(await evaluate("window.__ytOptions.videoId"), "37GihMpoc24");
-  assert.equal(await evaluate("window.__ytOptions.playerVars.start"), 20);
+  assert.equal(await evaluate("window.__ytOptions.playerVars.start"), undefined);
   assert.equal(await evaluate("document.querySelector('.birthday-music__title').textContent"), "Celebration");
   // The gate is the first thing she sees; its tap is the browser gesture that allows sound.
   assert.equal(await evaluate("document.querySelector('#birthday-gate').hidden"), false);
@@ -283,7 +283,7 @@ try {
   assert.ok((await evaluate("document.querySelector('#birthday-gate-title').textContent")).includes("Happy birthday"));
   assert.ok((await evaluate("document.querySelector('.birthday-gate__note').textContent")).includes("πιο όμορφο κορίτσι του κόσμου"));
   assert.equal(await evaluate("document.querySelector('#birthday-gate-button').textContent"), "Άνοιξέ το ♡");
-  // Browsers block audible autoplay, so the player waits paused at 0:20 until she taps.
+  // Browsers block audible autoplay, so the player waits paused until she taps.
   await until("document.querySelector('#birthday-music').classList.contains('is-muted')");
   assert.equal(await evaluate("window.__ytOptions.playerVars.autoplay"), 0);
   assert.equal(await evaluate("document.querySelector('#birthday-music-toggle').getAttribute('aria-label')"), "Πάτα για μουσική");
@@ -305,7 +305,7 @@ try {
   await tap("#birthday-music-toggle");
   await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
   await evaluate("window.__ytOptions.events.onStateChange({ data: 0 })");
-  assert.ok(await evaluate("window.__ytCalls.includes('seek:20')"), "the song restarts at 0:20 when it ends");
+  assert.ok(await evaluate("window.__ytCalls.includes('seek:0')"), "the song restarts from the start when it ends");
   await tap("#birthday-music-expand");
   assert.equal(await evaluate("document.querySelector('#birthday-music-card').classList.contains('is-expanded')"), true);
   assert.equal(await evaluate("document.querySelector('#birthday-music-expand').getAttribute('aria-expanded')"), "true");

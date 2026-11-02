@@ -33,7 +33,6 @@ const BIRTHDAY = {
   intro: 'Μακάρι κάθε σου ευχή να γίνει πραγματικότητα και κάθε σου μέρα να σου δίνει έναν λόγο να χαμογελάς.&nbsp;💕',
   videoId: "37GihMpoc24",
   videoUrl: "https://www.youtube.com/watch?v=37GihMpoc24",
-  startSeconds: 20,
   colors: ["#ffe5a0", "#ffc6dc", "#e3d2ff", "#fff3dc", "#f79ec1", "#9fe3c9", "#ffd0a8"]
 };
 
@@ -418,7 +417,7 @@ function startBirthdayMusic() {
     try {
       player = new window.YT.Player(mount, {
         videoId: BIRTHDAY.videoId,
-        playerVars: { autoplay: 0, playsinline: 1, rel: 0, controls: 0, start: BIRTHDAY.startSeconds },
+        playerVars: { autoplay: 0, playsinline: 1, rel: 0, controls: 0 },
         events: {
           onReady: () => {
             setPlaying(false);
@@ -438,8 +437,8 @@ function startBirthdayMusic() {
           },
           onStateChange: event => {
             if (event.data === window.YT.PlayerState.ENDED) {
-              // "The whole song", on repeat from the good part, as long as she keeps it open.
-              player.seekTo(BIRTHDAY.startSeconds, true);
+              // "The whole song", on repeat from the start, as long as she keeps it open.
+              player.seekTo(0, true);
               if (wantsPlay) player.playVideo();
               return;
             }
