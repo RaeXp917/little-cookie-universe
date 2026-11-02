@@ -279,6 +279,7 @@ try {
   assert.equal(await evaluate("document.querySelector('.birthday-music__title').textContent"), "Celebration");
   // The gate is the first thing she sees; its tap is the browser gesture that allows sound.
   assert.equal(await evaluate("document.querySelector('#birthday-gate').hidden"), false);
+  await until("document.getElementById('birthday-gate-button').disabled === false");
   assert.equal(await evaluate("document.activeElement.id"), "birthday-gate-button");
   assert.ok((await evaluate("document.querySelector('#birthday-gate-title').textContent")).includes("Happy birthday"));
   assert.ok((await evaluate("document.querySelector('.birthday-gate__note').textContent")).includes("πιο όμορφο κορίτσι του κόσμου"));

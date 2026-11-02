@@ -363,13 +363,15 @@ function startBirthdayMusic() {
   const toggle = document.getElementById("birthday-music-toggle");
   const expand = document.getElementById("birthday-music-expand");
   const artist = music && music.querySelector(".birthday-music__artist");
-  if (!music || !card || !mount || !toggle || !expand) return { start() {} };
+  if (!music || !card || !mount || !toggle || !expand) return { start() {}, whenReady() {} };
 
   let player = null;
   let wantsPlay = true;
   let failed = false;
   let muted = true;
   let gestureSeen = false;
+  let ready = false;
+  const readyCallbacks = [];
 
   music.hidden = false;
   music.classList.add("is-loading");
@@ -421,10 +423,12 @@ function startBirthdayMusic() {
         playerVars: { autoplay: 0, playsinline: 1, rel: 0, controls: 0 },
         events: {
           onReady: () => {
+            ready = true;
             setPlaying(false);
             if (player.setVolume) player.setVolume(70);
-            // If she already tapped while the player was still loading, the browser
-            // still counts that gesture: start right away.
+            for (const callback of readyCallbacks.splice(0)) callback();
+            // Only a tap that lands after this point can unlock sound; the gate waits
+            // for it, so this branch is just a safety net.
             if (!gestureSeen) return;
             muted = false;
             beginPlayback();
@@ -507,18 +511,6 @@ function startBirthdayMusic() {
     }, 700);
   }
 
-  // Browsers allow sound only after a gesture: the first tap outside the player starts it.
-  function startOnFirstGesture(event) {
-    if (failed) return;
-    const control = event.target instanceof Element ? event.target.closest("#birthday-music-toggle, #birthday-music-expand") : null;
-    if (control) return;
-    document.removeEventListener("pointerdown", startOnFirstGesture);
-    document.removeEventListener("keydown", startOnFirstGesture);
-    startPlayback();
-  }
-  document.addEventListener("pointerdown", startOnFirstGesture, { passive: true });
-  document.addEventListener("keydown", startOnFirstGesture);
-
   toggle.addEventListener("click", () => {
     if (!player || failed) return;
     if (muted) {
@@ -543,7 +535,7 @@ function startBirthdayMusic() {
 
   if (window.YT && window.YT.Player) {
     createPlayer();
-    return { start: startPlayback };
+    return { start: startPlayback, whenReady: callback => (ready ? callback() : readyCallbacks.push(callback)) };
   }
   window.onYouTubeIframeAPIReady = createPlayer;
   const script = document.createElement("script");
@@ -554,7 +546,7 @@ function startBirthdayMusic() {
   window.setTimeout(() => {
     if (!player) fail();
   }, 12000);
-  return { start: startPlayback };
+  return { start: startPlayback, whenReady: callback => (ready ? callback() : readyCallbacks.push(callback)) };
 }
 
 let birthdayConfetti = null;
@@ -574,17 +566,28 @@ function startBirthday() {
     return;
   }
 
-  // The gate exists because no browser plays audio before a real tap: her first
-  // touch is the gesture that starts both the song and the confetti.
+  // The gate exists because no browser plays audio before a real tap. It also waits
+  // for the YouTube player, so the tap lands on a ready player and is not ignored
+  // for arriving while the player was still booting.
   gate.hidden = false;
+  gateButton.disabled = true;
+  gateButton.textContent = "Φορτώνει… 🎵";
+
+  const unlockGate = () => {
+    gateButton.disabled = false;
+    gateButton.textContent = "Άνοιξέ το ♡";
+    gateButton.focus({ preventScroll: true });
+  };
+  music.whenReady(unlockGate);
+  window.setTimeout(unlockGate, 6000);
+
   const enter = () => {
-    if (gate.hidden) return;
+    if (gate.hidden || gateButton.disabled) return;
     gate.hidden = true;
     celebrate();
     music.start();
   };
   gate.addEventListener("click", enter);
-  gateButton.focus({ preventScroll: true });
 }
 
 function celebrate() {
