@@ -387,6 +387,7 @@ function startBirthdayMusic() {
   }
 
   function setPlaying(playing) {
+    if (playing) attempting = false;
     music.classList.remove("is-loading", "is-buffering");
     music.classList.toggle("is-playing", playing);
     music.classList.toggle("is-muted", muted);
@@ -451,7 +452,7 @@ function startBirthdayMusic() {
     if (failed) return;
     gestureSeen = true;
     wantsPlay = true;
-    if (!player) return;
+    if (!player || attempting) return;
     if (player.unMute) player.unMute();
     if (player.setVolume) player.setVolume(70);
     muted = false;
@@ -459,13 +460,15 @@ function startBirthdayMusic() {
   }
 
   let retryTimer = null;
+  let attempting = false;
 
   function beginPlayback() {
-    if (failed || !player) return;
+    if (failed || !player || attempting) return;
     if (player.getPlayerState() === window.YT.PlayerState.PLAYING) {
       setPlaying(true);
       return;
     }
+    attempting = true;
     // YouTube sometimes ignores the first play call while it boots: show that it is
     // loading, then retry a couple of times instead of looking dead.
     music.classList.add("is-buffering");
@@ -474,7 +477,10 @@ function startBirthdayMusic() {
   }
 
   function attemptPlay(remaining) {
-    if (failed || !player) return;
+    if (failed || !player) {
+      attempting = false;
+      return;
+    }
     if (retryTimer !== null) {
       window.clearTimeout(retryTimer);
       retryTimer = null;
@@ -482,9 +488,13 @@ function startBirthdayMusic() {
     player.playVideo();
     retryTimer = window.setTimeout(() => {
       retryTimer = null;
-      if (failed || !player) return;
+      if (failed || !player) {
+        attempting = false;
+        return;
+      }
       const state = player.getPlayerState();
       if (state === window.YT.PlayerState.PLAYING || state === window.YT.PlayerState.BUFFERING) {
+        attempting = false;
         setPlaying(true);
         return;
       }
@@ -492,6 +502,7 @@ function startBirthdayMusic() {
         attemptPlay(remaining - 1);
         return;
       }
+      attempting = false;
       setPlaying(false);
     }, 700);
   }
