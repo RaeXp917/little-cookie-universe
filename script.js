@@ -426,14 +426,7 @@ function startBirthdayMusic() {
             // still counts that gesture: start right away.
             if (!gestureSeen) return;
             muted = false;
-            music.classList.add("is-buffering");
-            if (artist) artist.textContent = "Φορτώνει… 🎵";
-            player.playVideo();
-            window.setTimeout(() => {
-              if (!player || failed) return;
-              const state = player.getPlayerState();
-              if (state !== window.YT.PlayerState.PLAYING && state !== window.YT.PlayerState.BUFFERING) setPlaying(false);
-            }, 700);
+            beginPlayback();
           },
           onStateChange: event => {
             if (event.data === window.YT.PlayerState.ENDED) {
@@ -462,24 +455,45 @@ function startBirthdayMusic() {
     if (player.unMute) player.unMute();
     if (player.setVolume) player.setVolume(70);
     muted = false;
-    const state = player.getPlayerState();
-    const rolling = state === window.YT.PlayerState.PLAYING || state === window.YT.PlayerState.BUFFERING;
-    if (!rolling && player.playVideo) player.playVideo();
-    // The gesture is there, so show it as playing; onStateChange corrects a real pause.
-    setPlaying(true);
-    if (!rolling) {
-      // YouTube needs a moment to boot and buffer on mobile: show that instead of a dead card.
-      music.classList.add("is-buffering");
-      if (artist) artist.textContent = "Φορτώνει… 🎵";
-      window.setTimeout(() => {
-        if (failed) return;
-        const now = player.getPlayerState();
-        if (now === window.YT.PlayerState.PLAYING || now === window.YT.PlayerState.BUFFERING) setPlaying(true);
-      }, 250);
-      window.setTimeout(() => {
-        if (music.classList.contains("is-buffering")) setPlaying(false);
-      }, 10000);
+    beginPlayback();
+  }
+
+  let retryTimer = null;
+
+  function beginPlayback() {
+    if (failed || !player) return;
+    if (player.getPlayerState() === window.YT.PlayerState.PLAYING) {
+      setPlaying(true);
+      return;
     }
+    // YouTube sometimes ignores the first play call while it boots: show that it is
+    // loading, then retry a couple of times instead of looking dead.
+    music.classList.add("is-buffering");
+    if (artist) artist.textContent = "Φορτώνει… 🎵";
+    attemptPlay(2);
+  }
+
+  function attemptPlay(remaining) {
+    if (failed || !player) return;
+    if (retryTimer !== null) {
+      window.clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+    player.playVideo();
+    retryTimer = window.setTimeout(() => {
+      retryTimer = null;
+      if (failed || !player) return;
+      const state = player.getPlayerState();
+      if (state === window.YT.PlayerState.PLAYING || state === window.YT.PlayerState.BUFFERING) {
+        setPlaying(true);
+        return;
+      }
+      if (remaining > 0) {
+        attemptPlay(remaining - 1);
+        return;
+      }
+      setPlaying(false);
+    }, 700);
   }
 
   // Browsers allow sound only after a gesture: the first tap outside the player starts it.
