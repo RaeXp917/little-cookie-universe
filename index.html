@@ -56,7 +56,7 @@
         <div class="welcome-copy">
           <span class="eyebrow"><span class="eyebrow-star" aria-hidden="true">✦</span> ΜΙΑ ΜΙΚΡΗ ΕΚΠΛΗΞΗ <span class="eyebrow-star" aria-hidden="true">✦</span></span>
           <h1 id="welcome-title">Πουπουκάκι μου <span class="title-heart">♡</span></h1>
-          <p class="welcome-intro">Σου έφτιαξα κάτι μικρό...<br>μόνο για σένα. <span aria-hidden="true">🍪✨</span></p>
+          <p class="welcome-intro" id="welcome-intro">Σου έφτιαξα κάτι μικρό...<br>μόνο για σένα. <span aria-hidden="true">🍪✨</span></p>
         </div>
 
         <div class="welcome-art" aria-hidden="true">
@@ -139,6 +139,30 @@
         <button class="replay-button" type="button" id="replay-button">Παίξε ξανά <span aria-hidden="true">🍪</span></button>
       </section>
     </main>
+
+    <!-- Birthday gate: the first tap is what unlocks audio in every browser. -->
+    <div class="birthday-gate" id="birthday-gate" role="dialog" aria-modal="true" aria-labelledby="birthday-gate-title" hidden>
+      <div class="birthday-gate__card">
+        <span class="birthday-gate__cake" aria-hidden="true">🎂</span>
+        <p class="birthday-gate__title" id="birthday-gate-title">Happy birthday<br>Πουπουκάκι μου!</p>
+        <p class="birthday-gate__note">Για το πιο όμορφο κορίτσι του κόσμου 💕</p>
+        <button class="birthday-gate__button" type="button" id="birthday-gate-button">Άνοιξέ το ♡</button>
+      </div>
+    </div>
+
+    <!-- Birthday mode: shown only on 3 November (or with ?birthday=1). -->
+    <div class="birthday-music" id="birthday-music" hidden>
+      <div class="birthday-music__card" id="birthday-music-card">
+        <div class="birthday-music__frame"><div id="birthday-player"></div></div>
+        <p class="birthday-music__meta">
+          <span class="birthday-music__title">Celebration</span>
+          <span class="birthday-music__artist">Kool &amp; The Gang</span>
+        </p>
+        <button class="birthday-music__toggle" type="button" id="birthday-music-toggle" aria-label="Παίξε το τραγούδι" aria-pressed="false" disabled>▶</button>
+        <button class="birthday-music__expand" type="button" id="birthday-music-expand" aria-label="Μεγέθυνση βίντεο" aria-expanded="false">⤢</button>
+      </div>
+    </div>
+
     <noscript><p class="noscript-note">Για να ανοίξει αυτή η μικρή έκπληξη, ενεργοποίησε τη JavaScript στον περιηγητή σου.</p></noscript>
   </body>
 </html>

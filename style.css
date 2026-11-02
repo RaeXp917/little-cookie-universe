@@ -192,7 +192,50 @@ h1, h2 { font-family: var(--display-font); font-weight: 400; }
 .replay-button:hover { background: #f5dce83b; transform: translateY(-2px); }
 .noscript-note { position: fixed; inset: auto 16px 16px; z-index: 10; padding: 20px; border-radius: 12px; background: var(--cream); color: #392846; }
 
+/* Birthday: the little universe throws a small party on 3 November. */
+.birthday-gate { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 28%, #2a1b3fe8, #100a1ffa 72%); backdrop-filter: blur(7px); }
+.birthday-gate__card { width: min(100%, 360px); padding: 30px 22px 24px; border: 1px solid #fff3f8d9; border-radius: 26px; background: linear-gradient(160deg, #ffe9ecf7, #f3dcf8f2); box-shadow: 0 26px 60px #08040fb8, inset 0 1px #fff; color: #47294c; text-align: center; animation: gate-arrive .55s cubic-bezier(.2,.7,.2,1) both; }
+.birthday-gate__cake { display: block; font-size: 2.7rem; line-height: 1; }
+.birthday-gate__title { margin: 12px 0 9px; color: #4b2a52; font-family: var(--display-font); font-size: clamp(1.75rem, 7.4vw, 2.3rem); line-height: 1.14; letter-spacing: -.02em; }
+.birthday-gate__note { margin: 0 0 20px; color: #6a4568; font-size: .93rem; line-height: 1.5; }
+.birthday-gate__button { width: 100%; min-height: 56px; padding: 13px 20px; border: 0; border-radius: 999px; background: linear-gradient(135deg, #ffd3e4, #dbc4fc 80%); box-shadow: 0 12px 26px #5a2a4a3d; color: #3b244a; font-size: 1rem; font-weight: 700; cursor: pointer; animation: sound-pulse 2.2s ease-in-out infinite; }
+.birthday-gate__button:hover { transform: translateY(-2px); }
+.birthday-confetti { position: fixed; inset: 0; z-index: 30; width: 100%; height: 100%; pointer-events: none; }
+body.birthday .welcome-copy h1 { font-size: clamp(2.15rem, 9.4vw, 4.1rem); }
+body.birthday .birthday-hi { display: block; color: var(--pink); font-style: italic; text-shadow: 0 0 28px #ffb7d15c; }
+body.birthday .birthday-cake { font-size: .74em; }
+body.birthday .welcome-intro { text-wrap: balance; }
+body.birthday .stage--welcome { padding-bottom: max(100px, calc(env(safe-area-inset-bottom) + 92px)); }
+body.birthday .stage--letter { padding-bottom: max(118px, calc(env(safe-area-inset-bottom) + 110px)); }
+
+.birthday-music { position: fixed; z-index: 40; inset-inline: 0; bottom: max(12px, env(safe-area-inset-bottom)); display: flex; justify-content: center; padding-inline: 14px; pointer-events: none; }
+.birthday-music__card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px; width: min(100%, 396px); padding: 7px; border: 1px solid #ffe8f170; border-radius: 18px; background: #221838f2; box-shadow: 0 16px 38px #080512bd, inset 0 1px #ffffff1a; backdrop-filter: blur(12px); pointer-events: auto; }
+.birthday-music__frame { width: 86px; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #0d0918; }
+.birthday-music__frame > div, .birthday-music__frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+.birthday-music__meta { min-width: 0; margin: 0; }
+.birthday-music__title { display: block; overflow: hidden; color: var(--cream); font-size: .84rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.birthday-music__artist { display: block; overflow: hidden; color: #c9b4d8; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+.birthday-music__toggle, .birthday-music__expand { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid #ffe8f133; border-radius: 50%; background: #ffffff12; color: var(--cream); font-size: .95rem; cursor: pointer; transition: background .2s ease, transform .2s ease, opacity .2s ease; }
+.birthday-music__toggle { border-color: #ffe7f3; background: linear-gradient(135deg, #ffdded, #e7d2fc 78%); color: #3b244a; font-size: .8rem; letter-spacing: -.05em; }
+.birthday-music__toggle:hover, .birthday-music__expand:hover { transform: translateY(-2px); }
+.birthday-music__toggle:disabled { opacity: .5; cursor: progress; }
+.birthday-music.is-playing .birthday-music__toggle { box-shadow: 0 0 0 3px #ffd9ec40, 0 0 18px #ffc6dc66; }
+.birthday-music.is-muted .birthday-music__toggle { animation: sound-pulse 1.8s ease-in-out infinite; }
+.birthday-music__card.is-expanded { grid-template-columns: minmax(0, 1fr) auto auto; }
+.birthday-music__card.is-expanded .birthday-music__frame { grid-column: 1 / -1; width: 100%; }
+.birthday-music.is-error .birthday-music__toggle, .birthday-music.is-error .birthday-music__expand { display: none; }
+.birthday-music.is-error .birthday-music__frame { display: grid; place-items: center; color: var(--gold); font-size: 1.2rem; }
+.birthday-music.is-error .birthday-music__frame::after { content: "🎵"; }
+
+@media (max-width: 360px) {
+  .birthday-music__card { gap: 8px; }
+  .birthday-music__frame { width: 64px; }
+  .birthday-music__artist { display: none; }
+}
+
 @keyframes sky-twinkle { from { opacity: .35; } to { opacity: .95; } }
+@keyframes sound-pulse { 0%, 100% { box-shadow: 0 0 0 0 #ffd9ec00; } 50% { box-shadow: 0 0 0 5px #ffd9ec4d, 0 0 20px #ffc6dc99; } }
+@keyframes gate-arrive { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes halo-breathe { from { opacity: .65; transform: scale(.9); } to { opacity: 1; transform: scale(1.1); } }
 @keyframes hero-float { 0%,100% { transform: translateY(0) rotate(-15deg); } 50% { transform: translateY(-10px) rotate(-10deg); } }
 @keyframes cookie-bob { 0%,100% { translate: 0 0; } 50% { translate: 0 -5px; } }

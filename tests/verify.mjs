@@ -235,8 +235,117 @@ try {
   await until("document.querySelector('#continue-button').hidden === false");
   await tap("#continue-button");
   assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), "1");
+
+  // Birthday mode: ?birthday=1 previews it; ?birthday=0 proves the rest of the year stays untouched.
+  // YouTube is stubbed so this check stays offline and deterministic.
+  await send("Emulation.setEmulatedMedia", { features: [] });
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: `
+    window.__ytCalls = [];
+    window.__ytBlockAutoplay = true;
+    window.YT = {
+      PlayerState: { ENDED: 0, PLAYING: 1, PAUSED: 2 },
+      Player: function (element, options) {
+        window.__ytOptions = options;
+        const self = this;
+        this.state = -1;
+        this.playVideo = () => {
+          window.__ytCalls.push("play");
+          if (window.__ytBlockAutoplay && !self.silent && !window.__ytGesture) return;
+          self.state = 1;
+          options.events.onStateChange({ data: 1 });
+        };
+        this.pauseVideo = () => { window.__ytCalls.push("pause"); self.state = 2; options.events.onStateChange({ data: 2 }); };
+        this.seekTo = seconds => window.__ytCalls.push("seek:" + seconds);
+        this.mute = () => { window.__ytCalls.push("mute"); self.silent = true; };
+        this.unMute = () => { window.__ytCalls.push("unmute"); self.silent = false; window.__ytGesture = true; };
+        this.setVolume = value => window.__ytCalls.push("volume:" + value);
+        this.getPlayerState = () => self.state;
+        setTimeout(() => options.events.onReady(), 0);
+      }
+    };
+  ` });
+  await viewport(390, 844);
+  await send("Page.navigate", { url: `${origin}?birthday=1` });
+  await until("document.readyState === 'complete'");
+  await until("window.__ytOptions !== undefined");
+  assert.equal(await evaluate("document.body.classList.contains('birthday')"), true);
+  assert.equal(await evaluate("document.title"), "🎉 Happy birthday Πουπουκάκι μου! 🎂");
+  assert.ok((await evaluate("document.querySelector('#welcome-title').textContent")).includes("Happy birthday"));
+  assert.ok((await evaluate("document.querySelector('#welcome-intro').textContent")).includes("Μακάρι κάθε σου ευχή να γίνει πραγματικότητα"));
+  assert.equal(await evaluate("document.querySelectorAll('.birthday-confetti').length"), 1);
+  assert.equal(await evaluate("document.querySelector('#birthday-music').hidden"), false);
+  assert.equal(await evaluate("window.__ytOptions.videoId"), "37GihMpoc24");
+  assert.equal(await evaluate("window.__ytOptions.playerVars.start"), 20);
+  assert.equal(await evaluate("document.querySelector('.birthday-music__title').textContent"), "Celebration");
+  // The gate is the first thing she sees; its tap is the browser gesture that allows sound.
+  assert.equal(await evaluate("document.querySelector('#birthday-gate').hidden"), false);
+  assert.equal(await evaluate("document.activeElement.id"), "birthday-gate-button");
+  assert.ok((await evaluate("document.querySelector('#birthday-gate-title').textContent")).includes("Happy birthday"));
+  assert.ok((await evaluate("document.querySelector('.birthday-gate__note').textContent")).includes("πιο όμορφο κορίτσι του κόσμου"));
+  assert.equal(await evaluate("document.querySelector('#birthday-gate-button').textContent"), "Άνοιξέ το ♡");
+  // Browsers block audible autoplay, so the player waits paused at 0:20 until she taps.
+  await until("document.querySelector('#birthday-music').classList.contains('is-muted')");
+  assert.equal(await evaluate("window.__ytOptions.playerVars.autoplay"), 0);
+  assert.equal(await evaluate("document.querySelector('#birthday-music-toggle').getAttribute('aria-label')"), "Πάτα για μουσική");
+  assert.equal(await evaluate("document.querySelector('.birthday-music__artist').textContent"), "Πάτα για μουσική");
+  assert.equal(await evaluate("window.__ytCalls.includes('play')"), false, "nothing plays before a gesture");
+  await screenshot("birthday-gate-390");
+  await tap("#birthday-gate-button");
+  await until("document.querySelector('#birthday-gate').hidden === true");
+  await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
+  await until("document.querySelector('#birthday-music').classList.contains('is-muted') === false");
+  assert.ok(await evaluate("window.__ytCalls.includes('unmute')"), "the gate tap starts the song with sound");
+  await screenshot("birthday-390");
+  await tap("#start-button");
+  assert.equal(await evaluate("document.querySelector('#game').hidden"), false);
+  await tap("#birthday-music-toggle");
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-playing')"), false);
+  assert.ok(await evaluate("window.__ytCalls.includes('pause')"));
+  await pause(400); // Let the double-tap window close before tapping the same spot again.
+  await tap("#birthday-music-toggle");
+  await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
+  await evaluate("window.__ytOptions.events.onStateChange({ data: 0 })");
+  assert.ok(await evaluate("window.__ytCalls.includes('seek:20')"), "the song restarts at 0:20 when it ends");
+  await tap("#birthday-music-expand");
+  assert.equal(await evaluate("document.querySelector('#birthday-music-card').classList.contains('is-expanded')"), true);
+  assert.equal(await evaluate("document.querySelector('#birthday-music-expand').getAttribute('aria-expanded')"), "true");
+  await viewport(320, 640);
+  const musicBox = await evaluate("(() => { const r = document.getElementById('birthday-music-card').getBoundingClientRect(); return { left: r.left, right: r.right, height: r.height }; })()");
+  assert.ok(musicBox.left >= 0 && musicBox.right <= 320, `birthday player overflows: ${JSON.stringify(musicBox)}`);
+  await screenshot("birthday-320");
+
+  // The birthday gate and the welcome screen have to fit the smallest phones too.
+  for (const [width, height] of [[320, 568], [360, 640], [412, 732]]) {
+    await viewport(width, height);
+    await send("Page.navigate", { url: `${origin}?birthday=1` });
+    await until("document.readyState === 'complete'");
+    await until("document.querySelector('#birthday-gate').hidden === false");
+    const gateBox = await evaluate("(() => { const r = document.querySelector('.birthday-gate__card').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; })()");
+    assert.ok(gateBox.left >= 0 && gateBox.right <= width, `${width}x${height} gate card overflows sideways: ${JSON.stringify(gateBox)}`);
+    assert.ok(gateBox.top >= 0 && gateBox.bottom <= height, `${width}x${height} gate card overflows vertically: ${JSON.stringify(gateBox)}`);
+    await screenshot(`birthday-gate-${width}`);
+    await tap("#birthday-gate-button");
+    await until("document.querySelector('#birthday-gate').hidden === true");
+    await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
+    await screenshot(`birthday-welcome-${width}`);
+  }
+  await viewport(390, 844);
+
+  await send("Page.navigate", { url: `${origin}?birthday=0` });
+  await until("document.readyState === 'complete'");
+  await until("document.querySelector('#letter-body').children.length === 7");
+  assert.equal(await evaluate("document.body.classList.contains('birthday')"), false);
+  assert.equal(await evaluate("document.title"), "A Little World For You ♡");
+  assert.equal(await evaluate("document.querySelector('#welcome-title').textContent.includes('Happy birthday')"), false);
+  assert.equal(await evaluate("document.querySelector('#welcome-intro').textContent.includes('Σου έφτιαξα κάτι μικρό')"), true);
+  assert.equal(await evaluate("document.querySelectorAll('.birthday-confetti').length"), 0);
+  assert.equal(await evaluate("document.querySelector('#birthday-gate').hidden"), true);
+  assert.equal(await evaluate("document.querySelector('#birthday-music').hidden"), true);
+  assert.equal(await evaluate("document.querySelector('#birthday-player iframe')"), null);
+  assert.equal(await evaluate("window.__ytOptions === undefined"), true, "the player is not created outside the birthday");
+
   assert.deepEqual(runtimeErrors, []);
-  console.log(`PASS: seven sequential touch steps, guarded Continue, messages, progress, envelope, letter, replay, and 320/360/390/412px layouts. Screenshots: ${screenshots}`);
+  console.log(`PASS: seven sequential touch steps, guarded Continue, messages, progress, envelope, letter, replay, 320/360/390/412px layouts, and birthday mode on 390/320px. Screenshots: ${screenshots}`);
 } finally {
   if (socket?.readyState === WebSocket.OPEN) {
     await Promise.race([send("Browser.close").catch(() => {}), pause(500)]);
