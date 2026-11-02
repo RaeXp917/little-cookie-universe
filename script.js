@@ -30,7 +30,7 @@ const BIRTHDAY = {
   timeZone: "Europe/Athens",
   title: "🎉 Happy birthday Πουπουκάκι μου! 🎂",
   heading: '<span class="birthday-hi">Happy birthday</span> Πουπουκάκι μου <span class="birthday-cake" aria-hidden="true">🎂</span>',
-  intro: 'Μακάρι κάθε σου ευχή να γίνει πραγματικότητα και κάθε σου μέρα να σου δίνει έναν λόγο να χαμογελάς. 💕',
+  intro: 'Μακάρι κάθε σου ευχή να γίνει πραγματικότητα και κάθε σου μέρα να σου δίνει έναν λόγο να χαμογελάς.&nbsp;💕',
   videoId: "37GihMpoc24",
   videoUrl: "https://www.youtube.com/watch?v=37GihMpoc24",
   startSeconds: 20,
@@ -375,8 +375,20 @@ function startBirthdayMusic() {
   music.hidden = false;
   music.classList.add("is-loading");
 
+  // Warm YouTube up while she reads the gate, and keep the real thumbnail in the
+  // card so it never shows an empty black box.
+  const frame = card.querySelector(".birthday-music__frame");
+  if (frame) frame.style.backgroundImage = `url("https://i.ytimg.com/vi/${BIRTHDAY.videoId}/hqdefault.jpg")`;
+  for (const origin of ["https://www.youtube.com", "https://i.ytimg.com"]) {
+    const hint = document.createElement("link");
+    hint.rel = "preconnect";
+    hint.href = origin;
+    hint.crossOrigin = "anonymous";
+    document.head.append(hint);
+  }
+
   function setPlaying(playing) {
-    music.classList.remove("is-loading");
+    music.classList.remove("is-loading", "is-buffering");
     music.classList.toggle("is-playing", playing);
     music.classList.toggle("is-muted", muted);
     toggle.disabled = false;
@@ -415,6 +427,8 @@ function startBirthdayMusic() {
             // still counts that gesture: start right away.
             if (!gestureSeen) return;
             muted = false;
+            music.classList.add("is-buffering");
+            if (artist) artist.textContent = "Φορτώνει… 🎵";
             player.playVideo();
             window.setTimeout(() => {
               if (!player || failed) return;
@@ -454,6 +468,19 @@ function startBirthdayMusic() {
     if (!rolling && player.playVideo) player.playVideo();
     // The gesture is there, so show it as playing; onStateChange corrects a real pause.
     setPlaying(true);
+    if (!rolling) {
+      // YouTube needs a moment to boot and buffer on mobile: show that instead of a dead card.
+      music.classList.add("is-buffering");
+      if (artist) artist.textContent = "Φορτώνει… 🎵";
+      window.setTimeout(() => {
+        if (failed) return;
+        const now = player.getPlayerState();
+        if (now === window.YT.PlayerState.PLAYING || now === window.YT.PlayerState.BUFFERING) setPlaying(true);
+      }, 250);
+      window.setTimeout(() => {
+        if (music.classList.contains("is-buffering")) setPlaying(false);
+      }, 10000);
+    }
   }
 
   // Browsers allow sound only after a gesture: the first tap outside the player starts it.
