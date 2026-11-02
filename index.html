@@ -153,13 +153,16 @@
     <!-- Birthday mode: shown only on 3 November (or with ?birthday=1). -->
     <div class="birthday-music" id="birthday-music" hidden>
       <div class="birthday-music__card" id="birthday-music-card">
-        <div class="birthday-music__frame"><div id="birthday-player"></div></div>
+        <span class="birthday-music__note" aria-hidden="true">♫</span>
         <p class="birthday-music__meta">
           <span class="birthday-music__title">Celebration</span>
           <span class="birthday-music__artist">Kool &amp; The Gang</span>
         </p>
-        <button class="birthday-music__toggle" type="button" id="birthday-music-toggle" aria-label="Παίξε το τραγούδι" aria-pressed="false" disabled>▶</button>
-        <button class="birthday-music__expand" type="button" id="birthday-music-expand" aria-label="Μεγέθυνση βίντεο" aria-expanded="false">⤢</button>
+        <div class="birthday-music__controls" role="group" aria-label="Χειριστήρια μουσικής">
+          <button class="birthday-music__control birthday-music__control--play" type="button" id="birthday-music-play" aria-label="Αναπαραγωγή τραγουδιού" aria-pressed="false">▶</button>
+          <button class="birthday-music__control birthday-music__control--mute" type="button" id="birthday-music-mute" aria-label="Σίγαση μουσικής" aria-pressed="false">🔊</button>
+        </div>
+        <audio id="birthday-audio" src="./assets/birthday-song.mp3" preload="none" loop hidden></audio>
       </div>
     </div>
 

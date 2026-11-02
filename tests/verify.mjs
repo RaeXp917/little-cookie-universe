@@ -3,6 +3,22 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repo = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const html = readFileSync(path.join(repo, "index.html"), "utf8");
+const script = readFileSync(path.join(repo, "script.js"), "utf8");
+const css = readFileSync(path.join(repo, "style.css"), "utf8");
+
+// Birthdays use one local audio file only: no YouTube iframe, API or thumbnail.
+assert.ok(html.includes('src="./assets/birthday-song.mp3"'), "the birthday audio path is missing");
+assert.equal((html.match(/<audio\b/g) || []).length, 1, "there must be exactly one audio element");
+assert.ok(!/youtube|ytimg|iframe_api/i.test(html), "YouTube markup must not remain");
+assert.ok(!/youtube|ytimg|YT\.Player|videoId|videoUrl/i.test(script), "YouTube JavaScript must not remain");
+assert.ok(script.includes('gateButton.addEventListener("click"'), "the gate button must own the first play call");
+assert.ok(/\.birthday-music\s*\{[^}]*justify-content:\s*center/s.test(css), "the music player must center horizontally");
+assert.ok(/env\(safe-area-inset-bottom\)/.test(css), "the music player must respect the bottom safe area");
+assert.ok(/\.birthday-music__control\s*\{[^}]*min-width:\s*44px/s.test(css), "music controls need 44px touch targets");
 
 const edge = [
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
@@ -105,7 +121,8 @@ try {
   await send("Runtime.enable");
   await send("Log.enable");
   await viewport(390, 844);
-  await send("Page.navigate", { url: origin });
+  // Pin normal mode: the suite must behave the same on 3 November and every other day.
+  await send("Page.navigate", { url: `${origin}?birthday=0` });
   await until("document.readyState === 'complete'");
   await until("document.querySelector('#letter-body').children.length === 7");
   assert.equal(await evaluate("document.querySelector('#welcome-title').textContent.trim()"), "Πουπουκάκι μου ♡");
@@ -237,86 +254,140 @@ try {
   assert.equal(await evaluate("document.querySelector('.cookie-button').dataset.cookie"), "1");
 
   // Birthday mode: ?birthday=1 previews it; ?birthday=0 proves the rest of the year stays untouched.
-  // YouTube is stubbed so this check stays offline and deterministic.
+  // The local audio element is stubbed so the check stays offline and deterministic;
+  // the real file path and the absence of YouTube are asserted statically below.
   await send("Emulation.setEmulatedMedia", { features: [] });
   await send("Page.addScriptToEvaluateOnNewDocument", { source: `
-    window.__ytCalls = [];
-    window.__ytBlockAutoplay = true;
-    window.YT = {
-      PlayerState: { ENDED: 0, PLAYING: 1, PAUSED: 2 },
-      Player: function (element, options) {
-        window.__ytOptions = options;
-        const self = this;
-        this.state = -1;
-        this.playVideo = () => {
-          window.__ytCalls.push("play");
-          if (window.__ytBlockAutoplay && !self.silent && !window.__ytGesture) return;
-          self.state = 1;
-          options.events.onStateChange({ data: 1 });
-        };
-        this.pauseVideo = () => { window.__ytCalls.push("pause"); self.state = 2; options.events.onStateChange({ data: 2 }); };
-        this.seekTo = seconds => window.__ytCalls.push("seek:" + seconds);
-        this.mute = () => { window.__ytCalls.push("mute"); self.silent = true; };
-        this.unMute = () => { window.__ytCalls.push("unmute"); self.silent = false; window.__ytGesture = true; };
-        this.setVolume = value => window.__ytCalls.push("volume:" + value);
-        this.getPlayerState = () => self.state;
-        setTimeout(() => options.events.onReady(), 0);
-      }
-    };
+    (() => {
+      const mediaState = new WeakMap();
+      const stateFor = element => {
+        if (!mediaState.has(element)) mediaState.set(element, { playing: false, muted: false, preload: "none" });
+        return mediaState.get(element);
+      };
+      const proto = HTMLMediaElement.prototype;
+      Object.defineProperty(proto, "paused", { configurable: true, get() { return !stateFor(this).playing; } });
+      Object.defineProperty(proto, "ended", { configurable: true, get() { return false; } });
+      Object.defineProperty(proto, "preload", {
+        configurable: true,
+        get() { return stateFor(this).preload; },
+        set(value) { stateFor(this).preload = String(value); }
+      });
+      Object.defineProperty(proto, "muted", {
+        configurable: true,
+        get() { return stateFor(this).muted; },
+        set(value) { stateFor(this).muted = Boolean(value); this.dispatchEvent(new Event("volumechange")); }
+      });
+      proto.play = function () {
+        window.__audioCalls.push("play:" + this.id);
+        if (window.__audioBlock) return Promise.reject(new DOMException("blocked", "NotAllowedError"));
+        stateFor(this).playing = true;
+        this.dispatchEvent(new Event("play"));
+        this.dispatchEvent(new Event("playing"));
+        return Promise.resolve();
+      };
+      proto.pause = function () {
+        window.__audioCalls.push("pause:" + this.id);
+        stateFor(this).playing = false;
+        this.dispatchEvent(new Event("pause"));
+      };
+      proto.load = function () {
+        window.__audioCalls.push("load:" + this.id);
+        if (window.__audioFail) this.dispatchEvent(new Event("error"));
+      };
+      const params = new URLSearchParams(location.search);
+      window.__audioCalls = [];
+      window.__audioBlock = params.has("audioblock");
+      window.__audioFail = params.has("audiofail");
+    })();
   ` });
   await viewport(390, 844);
   await send("Page.navigate", { url: `${origin}?birthday=1` });
   await until("document.readyState === 'complete'");
-  await until("window.__ytOptions !== undefined");
+  await until("document.querySelector('#birthday-gate').hidden === false");
   assert.equal(await evaluate("document.body.classList.contains('birthday')"), true);
   assert.equal(await evaluate("document.title"), "🎉 Happy birthday Πουπουκάκι μου! 🎂");
   assert.ok((await evaluate("document.querySelector('#welcome-title').textContent")).includes("Happy birthday"));
   assert.ok((await evaluate("document.querySelector('#welcome-intro').textContent")).includes("Μακάρι κάθε σου ευχή να γίνει πραγματικότητα"));
   assert.equal(await evaluate("document.querySelectorAll('.birthday-confetti').length"), 1);
   assert.equal(await evaluate("document.querySelector('#birthday-music').hidden"), false);
-  assert.equal(await evaluate("window.__ytOptions.videoId"), "37GihMpoc24");
-  assert.equal(await evaluate("window.__ytOptions.playerVars.start"), undefined);
   assert.equal(await evaluate("document.querySelector('.birthday-music__title').textContent"), "Celebration");
-  // The gate is the first thing she sees; its tap is the browser gesture that allows sound.
-  assert.equal(await evaluate("document.querySelector('#birthday-gate').hidden"), false);
-  await until("document.getElementById('birthday-gate-button').disabled === false");
-  assert.equal(await evaluate("document.activeElement.id"), "birthday-gate-button");
+  assert.equal(await evaluate("document.querySelector('.birthday-music__artist').textContent"), "Kool & The Gang");
   assert.ok((await evaluate("document.querySelector('#birthday-gate-title').textContent")).includes("Happy birthday"));
   assert.ok((await evaluate("document.querySelector('.birthday-gate__note').textContent")).includes("πιο όμορφο κορίτσι του κόσμου"));
-  assert.equal(await evaluate("document.querySelector('#birthday-gate-button').textContent"), "Άνοιξέ το ♡");
-  // Browsers block audible autoplay, so the player waits paused until she taps.
-  await until("document.querySelector('#birthday-music').classList.contains('is-muted')");
-  assert.equal(await evaluate("window.__ytOptions.playerVars.autoplay"), 0);
-  assert.equal(await evaluate("document.querySelector('#birthday-music-toggle').getAttribute('aria-label')"), "Πάτα για μουσική");
-  assert.equal(await evaluate("document.querySelector('.birthday-music__artist').textContent"), "Πάτα για μουσική");
-  assert.equal(await evaluate("window.__ytCalls.includes('play')"), false, "nothing plays before a gesture");
+  assert.equal(await evaluate("document.getElementById('birthday-gate-button').disabled"), false);
+  assert.equal(await evaluate("document.getElementById('birthday-gate-button').textContent"), "Άνοιξέ το ♡");
+  assert.equal(await evaluate("document.getElementById('birthday-music-play').getAttribute('aria-label')"), "Αναπαραγωγή τραγουδιού");
+  assert.equal(await evaluate("document.getElementById('birthday-music-mute').getAttribute('aria-label')"), "Σίγαση μουσικής");
+  assert.equal(await evaluate("document.getElementById('birthday-audio').preload"), "auto");
+  assert.equal(await evaluate("document.getElementById('birthday-audio').loop"), true);
+  assert.equal(await evaluate("Math.round(document.getElementById('birthday-audio').volume * 100)"), 70);
+  assert.deepEqual(await evaluate("window.__audioCalls"), ["load:birthday-audio"]);
+  assert.equal(await evaluate("window.YT === undefined"), true);
+  assert.equal(await evaluate("document.querySelectorAll('iframe').length"), 0);
+  const resources = await evaluate("performance.getEntriesByType('resource').map(entry => entry.name)");
+  assert.equal(resources.some(name => /youtube|ytimg/i.test(name)), false, "no YouTube request");
   await screenshot("birthday-gate-390");
+  // The gate is the first thing she sees; its tap is the browser gesture that starts sound.
   await tap("#birthday-gate-button");
   await until("document.querySelector('#birthday-gate').hidden === true");
   await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
-  await until("document.querySelector('#birthday-music').classList.contains('is-muted') === false");
-  assert.ok(await evaluate("window.__ytCalls.includes('unmute')"), "the gate tap starts the song with sound");
+  assert.ok(await evaluate("window.__audioCalls.includes('play:birthday-audio')"), "the gate tap starts the local song");
+  assert.equal(await evaluate("document.querySelector('#welcome').hidden"), false);
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-muted')"), false);
+  assert.equal(await evaluate("document.getElementById('birthday-music-play').getAttribute('aria-label')"), "Παύση τραγουδιού");
+  assert.equal(await evaluate("document.getElementById('birthday-music-mute').getAttribute('aria-label')"), "Σίγαση μουσικής");
   await screenshot("birthday-390");
+
+  // Play/Pause keeps the position; Mute/Unmute never changes the Play/Pause state.
+  const playsBeforeJourney = await evaluate("window.__audioCalls.filter(call => call.startsWith('play:')).length");
+  await tap("#birthday-music-play");
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-playing')"), false);
+  assert.equal(await evaluate("document.getElementById('birthday-music-play').getAttribute('aria-label')"), "Αναπαραγωγή τραγουδιού");
+  assert.ok(await evaluate("window.__audioCalls.includes('pause:birthday-audio')"));
+  await pause(400); // Let the double-tap window close before tapping the same spot again.
+  await tap("#birthday-music-play");
+  await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
+  await pause(400);
+  await tap("#birthday-music-mute");
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-muted')"), true);
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-playing')"), true);
+  assert.equal(await evaluate("document.getElementById('birthday-music-play').textContent"), "❙❙");
+  assert.equal(await evaluate("document.getElementById('birthday-music-mute').getAttribute('aria-label')"), "Ενεργοποίηση ήχου");
+  await pause(400);
+  await tap("#birthday-music-play");
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-playing')"), false);
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-muted')"), true, "muting does not pause the song");
+  assert.equal(await evaluate("document.getElementById('birthday-music-play').textContent"), "▶");
+  await pause(400);
+  await tap("#birthday-music-play");
+  await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
+  await pause(400);
+  await tap("#birthday-music-mute");
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-muted')"), false);
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-playing')"), true);
+  assert.equal(await evaluate("document.getElementById('birthday-music-mute').getAttribute('aria-label')"), "Σίγαση μουσικής");
+  assert.equal(await evaluate("window.__audioCalls.filter(call => call.startsWith('play:')).length"), playsBeforeJourney + 2);
+
+  // The song keeps playing through cookies, the surprise and the letter.
   await tap("#start-button");
   assert.equal(await evaluate("document.querySelector('#game').hidden"), false);
-  await tap("#birthday-music-toggle");
-  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-playing')"), false);
-  assert.ok(await evaluate("window.__ytCalls.includes('pause')"));
-  await pause(400); // Let the double-tap window close before tapping the same spot again.
-  await tap("#birthday-music-toggle");
-  await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
-  await evaluate("window.__ytOptions.events.onStateChange({ data: 0 })");
-  assert.ok(await evaluate("window.__ytCalls.includes('seek:0')"), "the song restarts from the start when it ends");
-  await tap("#birthday-music-expand");
-  assert.equal(await evaluate("document.querySelector('#birthday-music-card').classList.contains('is-expanded')"), true);
-  assert.equal(await evaluate("document.querySelector('#birthday-music-expand').getAttribute('aria-expanded')"), "true");
-  await viewport(320, 640);
-  const musicBox = await evaluate("(() => { const r = document.getElementById('birthday-music-card').getBoundingClientRect(); return { left: r.left, right: r.right, height: r.height }; })()");
-  assert.ok(musicBox.left >= 0 && musicBox.right <= 320, `birthday player overflows: ${JSON.stringify(musicBox)}`);
-  await screenshot("birthday-320");
+  for (let index = 0; index < 7; index++) {
+    await tap(".cookie-button");
+    await until("document.querySelector('#continue-button').hidden === false");
+    await tap("#continue-button");
+  }
+  assert.equal(await evaluate("document.querySelector('#surprise').hidden"), false);
+  await tap("#envelope-button");
+  await until("document.querySelector('#letter').hidden === false");
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-playing')"), true, "music continues in the letter");
+  assert.equal(await evaluate("window.__audioCalls.filter(call => call.startsWith('play:')).length"), playsBeforeJourney + 2, "stage transitions do not restart the song");
+  await tap("#replay-button");
+  assert.equal(await evaluate("document.querySelector('#welcome').hidden"), false);
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-playing')"), true, "replay keeps the song running");
+  await screenshot("birthday-replay-390");
 
-  // The birthday gate and the welcome screen have to fit the smallest phones too.
-  for (const [width, height] of [[320, 568], [360, 640], [412, 732]]) {
+  // The player must fit and center at the required widths, with 44px touch targets.
+  for (const [width, height] of [[320, 568], [360, 640], [375, 667], [390, 844], [430, 932], [1280, 900]]) {
     await viewport(width, height);
     await send("Page.navigate", { url: `${origin}?birthday=1` });
     await until("document.readyState === 'complete'");
@@ -328,10 +399,62 @@ try {
     await tap("#birthday-gate-button");
     await until("document.querySelector('#birthday-gate').hidden === true");
     await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
-    await screenshot(`birthday-welcome-${width}`);
+    const layout = await evaluate(`(() => {
+      const rect = element => {
+        const r = element.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, center: r.left + r.width / 2 };
+      };
+      return {
+        width: innerWidth,
+        card: rect(document.getElementById('birthday-music-card')),
+        group: rect(document.querySelector('.birthday-music__controls')),
+        play: rect(document.getElementById('birthday-music-play')),
+        mute: rect(document.getElementById('birthday-music-mute')),
+        welcomePadding: parseFloat(getComputedStyle(document.getElementById('welcome')).paddingBottom),
+        titleWidth: document.querySelector('.birthday-music__title').getBoundingClientRect().width
+      };
+    })()`);
+    assert.ok(layout.card.left >= 0 && layout.card.right <= width, `${width}px player overflows: ${JSON.stringify(layout.card)}`);
+    assert.ok(Math.abs(layout.card.center - width / 2) <= 1, `${width}px player card is not centered: ${JSON.stringify(layout.card)}`);
+    assert.ok(layout.play.width >= 44 && layout.play.height >= 44 && layout.mute.width >= 44 && layout.mute.height >= 44, `${width}px music touch targets are too small`);
+    assert.ok(Math.abs(layout.play.top - layout.mute.top) <= 1, `${width}px controls are not aligned`);
+    assert.ok(Math.abs((layout.play.center + layout.mute.center) / 2 - layout.group.center) <= 1, `${width}px controls are not centered in their group`);
+    assert.ok(Math.abs((layout.play.left - layout.group.left) - (layout.group.right - layout.mute.right)) <= 1, `${width}px controls are not balanced`);
+    assert.ok(layout.group.left >= layout.card.left && layout.group.right <= layout.card.right, `${width}px controls leave the card`);
+    assert.ok(layout.card.bottom <= height, `${width}px player is below the viewport`);
+    assert.ok(layout.welcomePadding >= layout.card.height, `${width}px player obscures the welcome action`);
+    assert.ok(layout.titleWidth > 0, `${width}px song title is hidden`);
+    await screenshot(`birthday-player-${width}`);
   }
   await viewport(390, 844);
 
+  // Missing or corrupt audio: the page still opens and the controls explain why.
+  await send("Page.navigate", { url: `${origin}?birthday=1&audiofail=1` });
+  await until("document.readyState === 'complete'");
+  await until("document.querySelector('#birthday-gate').hidden === false");
+  await until("document.querySelector('#birthday-music').classList.contains('is-error')");
+  assert.equal(await evaluate("document.querySelector('.birthday-music__artist').textContent"), "Η μουσική δεν είναι διαθέσιμη");
+  assert.equal(await evaluate("document.getElementById('birthday-music-play').disabled"), true);
+  await tap("#birthday-gate-button");
+  await until("document.querySelector('#birthday-gate').hidden === true");
+  assert.equal(await evaluate("document.querySelector('#welcome').hidden"), false);
+  assert.equal(await evaluate("document.querySelector('#game').hidden"), true);
+
+  // Blocked autoplay: the gate still closes, and the player controls retry the song.
+  await send("Page.navigate", { url: `${origin}?birthday=1&audioblock=1` });
+  await until("document.readyState === 'complete'");
+  await until("document.querySelector('#birthday-gate').hidden === false");
+  await tap("#birthday-gate-button");
+  await until("document.querySelector('#birthday-gate').hidden === true");
+  assert.equal(await evaluate("document.querySelector('#welcome').hidden"), false);
+  assert.equal(await evaluate("document.querySelector('#birthday-music').classList.contains('is-playing')"), false);
+  assert.equal(await evaluate("document.getElementById('birthday-music-play').disabled"), false);
+  await evaluate("window.__audioBlock = false");
+  await pause(400);
+  await tap("#birthday-music-play");
+  await until("document.querySelector('#birthday-music').classList.contains('is-playing')");
+
+  await viewport(390, 844);
   await send("Page.navigate", { url: `${origin}?birthday=0` });
   await until("document.readyState === 'complete'");
   await until("document.querySelector('#letter-body').children.length === 7");
@@ -342,11 +465,13 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('.birthday-confetti').length"), 0);
   assert.equal(await evaluate("document.querySelector('#birthday-gate').hidden"), true);
   assert.equal(await evaluate("document.querySelector('#birthday-music').hidden"), true);
-  assert.equal(await evaluate("document.querySelector('#birthday-player iframe')"), null);
-  assert.equal(await evaluate("window.__ytOptions === undefined"), true, "the player is not created outside the birthday");
+  assert.equal(await evaluate("document.getElementById('birthday-audio').preload"), "none");
+  assert.deepEqual(await evaluate("window.__audioCalls"), [], "birthday audio is not loaded outside birthday mode");
+  assert.equal(await evaluate("window.YT === undefined"), true);
+  assert.equal(await evaluate("document.querySelectorAll('iframe').length"), 0);
 
   assert.deepEqual(runtimeErrors, []);
-  console.log(`PASS: seven sequential touch steps, guarded Continue, messages, progress, envelope, letter, replay, 320/360/390/412px layouts, and birthday mode on 390/320px. Screenshots: ${screenshots}`);
+  console.log(`PASS: seven sequential touch steps, guarded Continue, messages, progress, envelope, letter, replay, 320/360/375/390/430/1280px layouts, local birthday audio with independent Play/Pause and Mute controls, and graceful audio failures. Screenshots: ${screenshots}`);
 } finally {
   if (socket?.readyState === WebSocket.OPEN) {
     await Promise.race([send("Browser.close").catch(() => {}), pause(500)]);

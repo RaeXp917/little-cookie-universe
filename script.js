@@ -31,8 +31,8 @@ const BIRTHDAY = {
   title: "🎉 Happy birthday Πουπουκάκι μου! 🎂",
   heading: '<span class="birthday-hi">Happy birthday</span> Πουπουκάκι μου <span class="birthday-cake" aria-hidden="true">🎂</span>',
   intro: 'Μακάρι κάθε σου ευχή να γίνει πραγματικότητα και κάθε σου μέρα να σου δίνει έναν λόγο να χαμογελάς.&nbsp;💕',
-  videoId: "37GihMpoc24",
-  videoUrl: "https://www.youtube.com/watch?v=37GihMpoc24",
+  // The song is a local MP3; assets/README.md documents the included file.
+  audioVolume: 0.7,
   colors: ["#ffe5a0", "#ffc6dc", "#e3d2ff", "#fff3dc", "#f79ec1", "#9fe3c9", "#ffd0a8"]
 };
 
@@ -355,198 +355,73 @@ function startBirthdayConfetti() {
   return { burst };
 }
 
-// A small YouTube player: the only external request, and only while the party is on.
+// One shared HTMLAudioElement drives both birthday controls. The recording is a
+// local file, so playback never waits on a video embed or another streaming API.
 function startBirthdayMusic() {
   const music = document.getElementById("birthday-music");
-  const card = document.getElementById("birthday-music-card");
-  const mount = document.getElementById("birthday-player");
-  const toggle = document.getElementById("birthday-music-toggle");
-  const expand = document.getElementById("birthday-music-expand");
+  const audio = document.getElementById("birthday-audio");
+  const playButton = document.getElementById("birthday-music-play");
+  const muteButton = document.getElementById("birthday-music-mute");
   const artist = music && music.querySelector(".birthday-music__artist");
-  if (!music || !card || !mount || !toggle || !expand) return { start() {}, whenReady() {} };
+  const noop = { play() {} };
+  if (!music || !audio || !playButton || !muteButton) return noop;
 
-  let player = null;
-  let wantsPlay = true;
-  let failed = false;
-  let muted = true;
-  let gestureSeen = false;
-  let ready = false;
-  const readyCallbacks = [];
+  const defaultArtist = artist ? artist.textContent : "";
+  let unavailable = false;
+
+  audio.loop = true;
+  audio.volume = BIRTHDAY.audioVolume;
+
+  function syncControls() {
+    const playing = !audio.paused && !audio.ended;
+    music.classList.toggle("is-playing", playing);
+    music.classList.toggle("is-muted", audio.muted);
+    music.classList.toggle("is-error", unavailable);
+    playButton.textContent = playing ? "❙❙" : "▶";
+    playButton.setAttribute("aria-label", playing ? "Παύση τραγουδιού" : "Αναπαραγωγή τραγουδιού");
+    playButton.setAttribute("aria-pressed", String(playing));
+    playButton.disabled = unavailable;
+    muteButton.textContent = audio.muted ? "🔇" : "🔊";
+    muteButton.setAttribute("aria-label", audio.muted ? "Ενεργοποίηση ήχου" : "Σίγαση μουσικής");
+    muteButton.setAttribute("aria-pressed", String(audio.muted));
+    muteButton.disabled = unavailable;
+    if (artist) artist.textContent = unavailable ? "Η μουσική δεν είναι διαθέσιμη" : defaultArtist;
+  }
+
+  function play() {
+    if (unavailable) return;
+    const attempt = audio.play();
+    // Blocked autoplay or a decode failure must not stop the birthday experience;
+    // the controls stay available for another try.
+    if (attempt && typeof attempt.catch === "function") attempt.catch(syncControls);
+  }
+
+  playButton.addEventListener("click", () => {
+    // The element keeps its position, so pausing and resuming continues the song.
+    if (audio.paused || audio.ended) play();
+    else audio.pause();
+  });
+  muteButton.addEventListener("click", () => {
+    if (!unavailable) audio.muted = !audio.muted;
+  });
+
+  audio.addEventListener("play", syncControls);
+  audio.addEventListener("playing", syncControls);
+  audio.addEventListener("pause", syncControls);
+  audio.addEventListener("volumechange", syncControls);
+  audio.addEventListener("ended", syncControls);
+  audio.addEventListener("error", () => {
+    if (unavailable) return;
+    unavailable = true;
+    syncControls();
+  });
 
   music.hidden = false;
-  music.classList.add("is-loading");
-
-  // Warm YouTube up while she reads the gate, and keep the real thumbnail in the
-  // card so it never shows an empty black box.
-  const frame = card.querySelector(".birthday-music__frame");
-  if (frame) frame.style.backgroundImage = `url("https://i.ytimg.com/vi/${BIRTHDAY.videoId}/hqdefault.jpg")`;
-  for (const origin of ["https://www.youtube.com", "https://i.ytimg.com"]) {
-    const hint = document.createElement("link");
-    hint.rel = "preconnect";
-    hint.href = origin;
-    hint.crossOrigin = "anonymous";
-    document.head.append(hint);
-  }
-
-  function setPlaying(playing) {
-    if (playing) attempting = false;
-    music.classList.remove("is-loading", "is-buffering");
-    music.classList.toggle("is-playing", playing);
-    music.classList.toggle("is-muted", muted);
-    toggle.disabled = false;
-    toggle.textContent = muted ? "🔊" : playing ? "❙❙" : "▶";
-    toggle.setAttribute("aria-pressed", String(playing && !muted));
-    toggle.setAttribute("aria-label", muted ? "Πάτα για μουσική" : playing ? "Παύση τραγουδιού" : "Παίξε το τραγούδι");
-    if (artist) artist.textContent = muted ? "Πάτα για μουσική" : "Kool & The Gang";
-  }
-
-  function fail() {
-    if (failed) return;
-    failed = true;
-    music.classList.remove("is-loading", "is-playing");
-    music.classList.add("is-error");
-    toggle.disabled = true;
-    const link = document.createElement("a");
-    link.className = "birthday-music__title";
-    link.href = BIRTHDAY.videoUrl;
-    link.target = "_blank";
-    link.rel = "noopener";
-    link.textContent = "Celebration ↗";
-    card.querySelector(".birthday-music__title").replaceWith(link);
-  }
-
-  function createPlayer() {
-    if (failed || player || !window.YT || !window.YT.Player) return;
-    try {
-      player = new window.YT.Player(mount, {
-        videoId: BIRTHDAY.videoId,
-        playerVars: { autoplay: 0, playsinline: 1, rel: 0, controls: 0 },
-        events: {
-          onReady: () => {
-            ready = true;
-            setPlaying(false);
-            if (player.setVolume) player.setVolume(70);
-            for (const callback of readyCallbacks.splice(0)) callback();
-            // Only a tap that lands after this point can unlock sound; the gate waits
-            // for it, so this branch is just a safety net.
-            if (!gestureSeen) return;
-            muted = false;
-            beginPlayback();
-          },
-          onStateChange: event => {
-            if (event.data === window.YT.PlayerState.ENDED) {
-              // "The whole song", on repeat from the start, as long as she keeps it open.
-              player.seekTo(0, true);
-              if (wantsPlay) player.playVideo();
-              return;
-            }
-            if (event.data === window.YT.PlayerState.PLAYING) setPlaying(true);
-            if (event.data === window.YT.PlayerState.PAUSED) setPlaying(false);
-          },
-          onError: fail
-        }
-      });
-    } catch {
-      // The embed itself failed: keep the birthday page, offer the song as a link.
-      fail();
-    }
-  }
-
-  function startPlayback() {
-    if (failed) return;
-    gestureSeen = true;
-    wantsPlay = true;
-    if (!player || attempting) return;
-    if (player.unMute) player.unMute();
-    if (player.setVolume) player.setVolume(70);
-    muted = false;
-    beginPlayback();
-  }
-
-  let retryTimer = null;
-  let attempting = false;
-
-  function beginPlayback() {
-    if (failed || !player || attempting) return;
-    if (player.getPlayerState() === window.YT.PlayerState.PLAYING) {
-      setPlaying(true);
-      return;
-    }
-    attempting = true;
-    // YouTube sometimes ignores the first play call while it boots: show that it is
-    // loading, then retry a couple of times instead of looking dead.
-    music.classList.add("is-buffering");
-    if (artist) artist.textContent = "Φορτώνει… 🎵";
-    attemptPlay(2);
-  }
-
-  function attemptPlay(remaining) {
-    if (failed || !player) {
-      attempting = false;
-      return;
-    }
-    if (retryTimer !== null) {
-      window.clearTimeout(retryTimer);
-      retryTimer = null;
-    }
-    player.playVideo();
-    retryTimer = window.setTimeout(() => {
-      retryTimer = null;
-      if (failed || !player) {
-        attempting = false;
-        return;
-      }
-      const state = player.getPlayerState();
-      if (state === window.YT.PlayerState.PLAYING || state === window.YT.PlayerState.BUFFERING) {
-        attempting = false;
-        setPlaying(true);
-        return;
-      }
-      if (remaining > 0) {
-        attemptPlay(remaining - 1);
-        return;
-      }
-      attempting = false;
-      setPlaying(false);
-    }, 700);
-  }
-
-  toggle.addEventListener("click", () => {
-    if (!player || failed) return;
-    if (muted) {
-      // Sound is not unlocked yet: this tap is the gesture that starts the song.
-      startPlayback();
-      return;
-    }
-    const playing = player.getPlayerState() === window.YT.PlayerState.PLAYING;
-    if (playing) {
-      wantsPlay = false;
-      player.pauseVideo();
-      setPlaying(false);
-    } else {
-      startPlayback();
-    }
-  });
-  expand.addEventListener("click", () => {
-    const expanded = card.classList.toggle("is-expanded");
-    expand.setAttribute("aria-expanded", String(expanded));
-    expand.setAttribute("aria-label", expanded ? "Σμίκρυνση βίντεο" : "Μεγέθυνση βίντεο");
-  });
-
-  if (window.YT && window.YT.Player) {
-    createPlayer();
-    return { start: startPlayback, whenReady: callback => (ready ? callback() : readyCallbacks.push(callback)) };
-  }
-  window.onYouTubeIframeAPIReady = createPlayer;
-  const script = document.createElement("script");
-  script.src = "https://www.youtube.com/iframe_api";
-  script.async = true;
-  script.onerror = fail;
-  document.head.append(script);
-  window.setTimeout(() => {
-    if (!player) fail();
-  }, 12000);
-  return { start: startPlayback, whenReady: callback => (ready ? callback() : readyCallbacks.push(callback)) };
+  // Birthday mode preloads the local file; non-birthday pages never call load().
+  audio.preload = "auto";
+  audio.load();
+  syncControls();
+  return { play };
 }
 
 let birthdayConfetti = null;
@@ -562,32 +437,23 @@ function startBirthday() {
   const gateButton = document.getElementById("birthday-gate-button");
   if (!gate || !gateButton) {
     celebrate();
-    music.start();
+    music.play();
     return;
   }
 
-  // The gate exists because no browser plays audio before a real tap. It also waits
-  // for the YouTube player, so the tap lands on a ready player and is not ignored
-  // for arriving while the player was still booting.
+  // The gate exists because no browser plays audio before a real tap. Its button is
+  // never disabled while waiting for the network: the song is local.
   gate.hidden = false;
-  gateButton.disabled = true;
-  gateButton.textContent = "Φορτώνει… 🎵";
-
-  const unlockGate = () => {
-    gateButton.disabled = false;
-    gateButton.textContent = "Άνοιξέ το ♡";
-    gateButton.focus({ preventScroll: true });
-  };
-  music.whenReady(unlockGate);
-  window.setTimeout(unlockGate, 6000);
 
   const enter = () => {
-    if (gate.hidden || gateButton.disabled) return;
+    if (gate.hidden) return;
     gate.hidden = true;
+    // Keep this call inside the original click task: mobile browsers allow audible
+    // playback only from a real user gesture, with no timer or await before it.
+    music.play();
     celebrate();
-    music.start();
   };
-  gate.addEventListener("click", enter);
+  gateButton.addEventListener("click", enter);
 }
 
 function celebrate() {
